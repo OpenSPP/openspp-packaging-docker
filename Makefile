@@ -4,7 +4,7 @@
 .PHONY: help build build-slim build-all run stop clean logs shell db-shell test push
 
 # Variables
-OPENSPP_VERSION ?= 17.0.1+odoo17.0-1
+OPENSPP_VERSION ?= 17.0.1-daily+odoo17.0-1
 REGISTRY ?= docker.io
 REPO ?= openspp/openspp
 IMAGE_NAME = $(REGISTRY)/$(REPO)

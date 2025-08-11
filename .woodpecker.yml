@@ -36,8 +36,8 @@ steps:
       - ./build-deb.sh
       
       # Copy deb files to docker build context
-      - cp openspp_*.deb ../openspp-packaging-docker/
-      - cp openspp_*.deb.sha256 ../openspp-packaging-docker/ || true
+      - cp openspp-17-daily_*.deb ../openspp-packaging-docker/
+      - cp openspp-17-daily_*.deb.sha256 ../openspp-packaging-docker/ || true
       
       # Show build artifacts
       - ls -la ../openspp-packaging-docker/*.deb*
@@ -62,7 +62,7 @@ steps:
       dockerfile: Dockerfile
       platforms: linux/amd64,linux/arm64
       build_args:
-        - OPENSPP_VERSION=${CI_COMMIT_TAG:-17.0.1+odoo17.0-1}
+        - OPENSPP_VERSION=${CI_COMMIT_TAG:-17.0.1-daily+odoo17.0-1}
         - BUILD_DATE=${CI_BUILD_CREATED}
         - VCS_REF=${CI_COMMIT_SHA}
       tags:
@@ -89,7 +89,7 @@ steps:
       dockerfile: Dockerfile.slim
       platforms: linux/amd64,linux/arm64
       build_args:
-        - OPENSPP_VERSION=${CI_COMMIT_TAG:-17.0.1+odoo17.0-1}
+        - OPENSPP_VERSION=${CI_COMMIT_TAG:-17.0.1-daily+odoo17.0-1}
         - BUILD_DATE=${CI_BUILD_CREATED}
         - VCS_REF=${CI_COMMIT_SHA}
       tags:
@@ -207,7 +207,7 @@ steps:
 # Matrix builds for different versions (optional)
 matrix:
   include:
-    - OPENSPP_VERSION: 17.0.1+odoo17.0-1
+    - OPENSPP_VERSION: 17.0.1-daily+odoo17.0-1
       ODOO_VERSION: "17.0"
     # Add more versions as needed
 

@@ -2,7 +2,7 @@
 # ABOUTME: Multi-stage build with security hardening and multi-arch support
 
 # Build arguments for version control
-ARG OPENSPP_VERSION=17.0.1+odoo17.0-1
+ARG OPENSPP_VERSION=17.0.1-daily+odoo17.0-1
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGETARCH=amd64
 
@@ -27,12 +27,12 @@ WORKDIR /tmp
 
 # Copy deb package from build context (provided by CI)
 # The CI pipeline should provide the correct architecture deb file
-COPY openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb* /tmp/
+COPY openspp-17-daily_*_${TARGETARCH}.deb* /tmp/
 
 # Verify package integrity if checksum provided
-RUN if [ -f /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb.sha256 ]; then \
+RUN if [ -f /tmp/openspp-17-daily_*_${TARGETARCH}.deb.sha256 ]; then \
         echo "Verifying package checksum..." && \
-        sha256sum -c /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb.sha256; \
+        sha256sum -c /tmp/openspp-17-daily_*_${TARGETARCH}.deb.sha256; \
     fi
 
 # ============================================
@@ -45,13 +45,13 @@ ARG OPENSPP_VERSION
 ARG TARGETARCH
 
 # Copy verified deb from downloader stage
-COPY --from=downloader /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb /tmp/
+COPY --from=downloader /tmp/openspp-17-daily_*_${TARGETARCH}.deb /tmp/
 
 # Install OpenSPP package and its dependencies
 # The deb package should handle all dependency installation
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb \
+        /tmp/openspp-17-daily_*_${TARGETARCH}.deb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/*.deb
 

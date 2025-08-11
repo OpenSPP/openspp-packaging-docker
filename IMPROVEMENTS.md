@@ -2,6 +2,8 @@
 
 Based on review of official Odoo Docker setup and OpenSPP Installation Guide.
 
+> **Note:** Configuration updated to use OpenSPP daily builds (`openspp-17-daily`) from https://builds.acn.fr/repository/apt-openspp-daily/
+
 ## Key Improvements Implemented
 
 ### From Official Odoo Docker:

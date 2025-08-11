@@ -2,6 +2,8 @@
 
 Production-ready Docker images for OpenSPP Social Protection Platform based on Odoo 17.
 
+> **Note:** This configuration uses OpenSPP daily builds from the [apt-openspp-daily](https://builds.acn.fr/repository/apt-openspp-daily/) repository. The package name is `openspp-17-daily`.
+
 ## Features
 
 - 🚀 **Multi-architecture support** (amd64, arm64)
@@ -26,7 +28,11 @@ cd openspp-packaging-docker
 
 2. Copy the deb package to the build context:
 ```bash
-cp ../openspp-packaging-v2/openspp_*.deb .
+# For daily builds from openspp-packaging-v2
+cp ../openspp-packaging-v2/openspp-17-daily_*.deb .
+
+# Or download directly from Nexus (daily builds)
+# wget https://builds.acn.fr/repository/apt-openspp-daily/pool/main/o/openspp-17-daily/openspp-17-daily_*.deb
 ```
 
 3. Start the services:
@@ -278,6 +284,7 @@ LGPL-3.0 - See [LICENSE](LICENSE) file for details.
 - Documentation: https://docs.openspp.org
 - Issues: https://github.com/openspp/openspp-packaging-docker/issues
 - Community: https://community.openspp.org
+- APT Repository (Daily): https://builds.acn.fr/repository/apt-openspp-daily/
 
 ## Contributing
 
