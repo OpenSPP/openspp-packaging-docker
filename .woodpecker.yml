@@ -1,0 +1,221 @@
+# Woodpecker CI Pipeline for OpenSPP Docker Images
+# Builds both standard and slim images for multiple architectures
+
+when:
+  event: [push, tag, pull_request]
+  branch: [main, master, develop, release/*]
+
+# Global environment variables
+environment:
+  DOCKER_BUILDKIT: 1
+
+# Pipeline steps
+steps:
+  # Step 1: Build the deb package from source
+  build-deb:
+    image: debian:bookworm
+    when:
+      event: [push, tag]
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+    commands:
+      # Install build dependencies
+      - apt-get update
+      - apt-get install -y --no-install-recommends 
+          build-essential 
+          debhelper 
+          python3-dev 
+          python3-venv 
+          python3-pip 
+          dh-python 
+          git 
+          curl
+      
+      # Build the deb package
+      - cd ../openspp-packaging-v2
+      - ./build-deb.sh
+      
+      # Copy deb files to docker build context
+      - cp openspp_*.deb ../openspp-packaging-docker/
+      - cp openspp_*.deb.sha256 ../openspp-packaging-docker/ || true
+      
+      # Show build artifacts
+      - ls -la ../openspp-packaging-docker/*.deb*
+
+  # Step 2: Security scan of the deb package
+  scan-deb:
+    image: aquasec/trivy:latest
+    when:
+      event: [push, tag]
+    commands:
+      - trivy fs --severity HIGH,CRITICAL --exit-code 0 .
+      - trivy fs --severity HIGH,CRITICAL --format json --output trivy-report.json .
+
+  # Step 3: Build multi-arch Docker images (standard Ubuntu)
+  build-docker-ubuntu:
+    image: woodpeckerci/plugin-docker-buildx
+    when:
+      event: [push, tag]
+    settings:
+      registry: ${CI_REGISTRY:-docker.io}
+      repo: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp
+      dockerfile: Dockerfile
+      platforms: linux/amd64,linux/arm64
+      build_args:
+        - OPENSPP_VERSION=${CI_COMMIT_TAG:-17.0.1+odoo17.0-1}
+        - BUILD_DATE=${CI_BUILD_CREATED}
+        - VCS_REF=${CI_COMMIT_SHA}
+      tags:
+        - ${CI_COMMIT_TAG:-latest}
+        - ${CI_COMMIT_BRANCH}
+        - ${CI_COMMIT_SHA:0:8}
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      cache_from:
+        - ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache
+      cache_to:
+        - type=registry,ref=${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache,mode=max
+
+  # Step 4: Build multi-arch Docker images (slim Debian)
+  build-docker-slim:
+    image: woodpeckerci/plugin-docker-buildx
+    when:
+      event: [push, tag]
+    settings:
+      registry: ${CI_REGISTRY:-docker.io}
+      repo: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp
+      dockerfile: Dockerfile.slim
+      platforms: linux/amd64,linux/arm64
+      build_args:
+        - OPENSPP_VERSION=${CI_COMMIT_TAG:-17.0.1+odoo17.0-1}
+        - BUILD_DATE=${CI_BUILD_CREATED}
+        - VCS_REF=${CI_COMMIT_SHA}
+      tags:
+        - ${CI_COMMIT_TAG:-latest}-slim
+        - ${CI_COMMIT_BRANCH}-slim
+        - ${CI_COMMIT_SHA:0:8}-slim
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      cache_from:
+        - ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache-slim
+      cache_to:
+        - type=registry,ref=${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache-slim,mode=max
+
+  # Step 5: Security scan of Docker images
+  scan-docker:
+    image: aquasec/trivy:latest
+    when:
+      event: [push, tag]
+    commands:
+      # Scan Ubuntu image
+      - trivy image --severity HIGH,CRITICAL --exit-code 0 
+          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}
+      
+      # Scan slim image
+      - trivy image --severity HIGH,CRITICAL --exit-code 0 
+          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}-slim
+      
+      # Generate reports
+      - trivy image --format json --output trivy-ubuntu.json 
+          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}
+      - trivy image --format json --output trivy-slim.json 
+          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}-slim
+
+  # Step 6: Test Docker images
+  test-docker:
+    image: docker:latest
+    when:
+      event: [push, tag]
+    commands:
+      # Test Ubuntu image
+      - docker run --rm ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8} 
+          openspp-server --version
+      
+      # Test slim image
+      - docker run --rm ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}-slim 
+          openspp-server --version
+      
+      # Test health check endpoint
+      - |
+        docker run -d --name test-openspp -p 8069:8069 \
+          -e SKIP_DB_WAIT=true \
+          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}
+        sleep 30
+        curl -f http://localhost:8069/web/health || exit 1
+        docker stop test-openspp
+        docker rm test-openspp
+
+  # Step 7: Push to production registry (only on tags)
+  push-production:
+    image: woodpeckerci/plugin-docker-buildx
+    when:
+      event: tag
+    settings:
+      registry: ${PROD_REGISTRY}
+      repo: ${PROD_REGISTRY}/${PROD_REPO}/openspp
+      tags:
+        - ${CI_COMMIT_TAG}
+        - latest
+        - stable
+      username:
+        from_secret: prod_docker_username
+      password:
+        from_secret: prod_docker_password
+      dry_run: false
+
+  # Step 8: Update deployment manifests
+  update-manifests:
+    image: alpine/git:latest
+    when:
+      event: tag
+    commands:
+      - git clone https://github.com/${CI_REPO_OWNER}/openspp-k8s-manifests.git
+      - cd openspp-k8s-manifests
+      - sed -i "s|image:.*openspp:.*|image: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_TAG}|g" 
+          deployments/*.yaml
+      - git add .
+      - git commit -m "Update OpenSPP image to ${CI_COMMIT_TAG}"
+      - git push
+
+  # Step 9: Notify on completion
+  notify:
+    image: plugins/slack
+    when:
+      status: [success, failure]
+    settings:
+      webhook:
+        from_secret: slack_webhook
+      channel: openspp-ci
+      template: |
+        {{#success build.status}}
+          ✅ Build #{{build.number}} succeeded for {{repo.name}}
+          - Branch: {{build.branch}}
+          - Commit: {{build.commit}}
+          - Author: {{build.author}}
+          - Images: openspp:{{build.tag}}, openspp:{{build.tag}}-slim
+        {{else}}
+          ❌ Build #{{build.number}} failed for {{repo.name}}
+          - Branch: {{build.branch}}
+          - Commit: {{build.commit}}
+          - Author: {{build.author}}
+        {{/success}}
+
+# Matrix builds for different versions (optional)
+matrix:
+  include:
+    - OPENSPP_VERSION: 17.0.1+odoo17.0-1
+      ODOO_VERSION: "17.0"
+    # Add more versions as needed
+
+# Services (for integration testing)
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: openspp
+      POSTGRES_PASSWORD: openspp
+      POSTGRES_DB: openspp_test

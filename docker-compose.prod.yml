@@ -1,0 +1,247 @@
+version: '3.8'
+
+# Production Docker Compose Configuration for OpenSPP
+# This configuration includes:
+# - Security hardening
+# - Resource limits
+# - Production-grade settings
+# - Monitoring readiness
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: openspp_db_prod
+    restart: always
+    environment:
+      POSTGRES_DB_FILE: /run/secrets/db_name
+      POSTGRES_USER_FILE: /run/secrets/db_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8 --data-checksums"
+    secrets:
+      - db_name
+      - db_user
+      - db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - openspp-backend
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: openspp_redis_prod
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass "$$(cat /run/secrets/redis_password)"
+    secrets:
+      - redis_password
+    volumes:
+      - redis_data:/data
+    networks:
+      - openspp-backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "$$(cat /run/secrets/redis_password)", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # OpenSPP Application (Using slim image for production)
+  openspp:
+    image: ${REGISTRY:-docker.io}/openspp/openspp:${OPENSPP_VERSION:-17.0.1}-slim
+    container_name: openspp_app_prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database Configuration (using secrets)
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER_FILE: /run/secrets/db_user
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_NAME_FILE: /run/secrets/db_name
+      
+      # Admin Configuration
+      ODOO_ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+      ODOO_LIST_DB: False
+      
+      # Production Settings
+      ODOO_LOG_LEVEL: warn
+      ODOO_WORKERS: ${WORKERS:-4}
+      ODOO_MAX_CRON_THREADS: ${MAX_CRON_THREADS:-2}
+      ODOO_PROXY_MODE: True
+      ODOO_WITHOUT_DEMO: true
+      
+      # Performance Tuning
+      ODOO_LIMIT_MEMORY_HARD: 2684354560  # 2.5GB
+      ODOO_LIMIT_MEMORY_SOFT: 2147483648  # 2GB
+      ODOO_LIMIT_TIME_CPU: 600
+      ODOO_LIMIT_TIME_REAL: 1200
+      ODOO_DB_MAXCONN: 64
+    secrets:
+      - db_user
+      - db_password
+      - db_name
+      - admin_password
+    volumes:
+      # Persistent data
+      - openspp_data:/var/lib/openspp
+      
+      # Custom addons (read-only in production)
+      - ./custom-addons:/mnt/extra-addons:ro
+      
+      # Backup directory
+      - ./backups:/backups
+    networks:
+      - openspp-backend
+      - openspp-frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8069/web/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: openspp_nginx_prod
+    restart: always
+    depends_on:
+      - openspp
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - openspp-frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+# Docker Secrets for sensitive data
+secrets:
+  db_name:
+    external: true
+  db_user:
+    external: true
+  db_password:
+    external: true
+  admin_password:
+    external: true
+  redis_password:
+    external: true
+
+# Volumes
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/openspp/postgres_data
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/openspp/redis_data
+  openspp_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/openspp/openspp_data
+  nginx_cache:
+    driver: local
+
+# Networks
+networks:
+  openspp-backend:
+    driver: bridge
+    internal: true
+    name: openspp-backend
+  openspp-frontend:
+    driver: bridge
+    name: openspp-frontend

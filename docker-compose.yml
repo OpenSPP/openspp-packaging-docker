@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: openspp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-openspp}
+      POSTGRES_USER: ${DB_USER:-openspp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-openspp}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    # Port exposed only on localhost for debugging
+    # Comment out for production or if not needed
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-openspp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - openspp-network
+
+  # Redis Cache (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: openspp_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    # Port exposed only on localhost for debugging
+    # Comment out for production or if not needed
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - openspp-network
+
+  # OpenSPP Application
+  openspp:
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile}
+      args:
+        OPENSPP_VERSION: ${OPENSPP_VERSION:-17.0.1+odoo17.0-1}
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+    image: openspp:${OPENSPP_VERSION:-latest}
+    container_name: openspp_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-openspp}
+      DB_PASSWORD: ${DB_PASSWORD:-openspp}
+      DB_NAME: ${DB_NAME:-openspp}
+      
+      # Odoo Configuration
+      ODOO_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      ODOO_LIST_DB: ${LIST_DB:-True}
+      ODOO_LOG_LEVEL: ${LOG_LEVEL:-info}
+      # CRITICAL: Workers must be > 0 for queue_job (minimum 2 for production)
+      ODOO_WORKERS: ${WORKERS:-2}
+      ODOO_MAX_CRON_THREADS: ${MAX_CRON_THREADS:-2}
+      ODOO_PROXY_MODE: ${PROXY_MODE:-False}
+      
+      # Development/Initialization
+      INIT_DATABASE: ${INIT_DATABASE:-false}
+      INSTALL_MODULES: ${INSTALL_MODULES:-}
+      UPDATE_MODULES: ${UPDATE_MODULES:-}
+      ODOO_DEV_MODE: ${DEV_MODE:-false}
+      ODOO_WITHOUT_DEMO: ${WITHOUT_DEMO:-false}
+      
+      # Performance Tuning
+      ODOO_LIMIT_MEMORY_HARD: ${LIMIT_MEMORY_HARD:-}
+      ODOO_LIMIT_MEMORY_SOFT: ${LIMIT_MEMORY_SOFT:-}
+      ODOO_LIMIT_TIME_CPU: ${LIMIT_TIME_CPU:-}
+      ODOO_LIMIT_TIME_REAL: ${LIMIT_TIME_REAL:-}
+    volumes:
+      # Persistent data
+      - openspp_data:/var/lib/openspp
+      
+      # Custom addons for development
+      - ./custom-addons:/mnt/extra-addons:ro
+      
+      # Configuration override (optional)
+      # - ./config/custom-odoo.conf:/etc/openspp/odoo.conf:ro
+    ports:
+      - "127.0.0.1:8069:8069"  # Web/HTTP
+      - "127.0.0.1:8071:8071"  # RPC (development)
+      - "127.0.0.1:8072:8072"  # Websocket/Longpolling
+    networks:
+      - openspp-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx Reverse Proxy (optional, for production-like setup)
+  # Uncomment to enable
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: openspp_nginx
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - openspp
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+  #     - nginx_ssl:/etc/nginx/ssl:ro
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   networks:
+  #     - openspp-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  openspp_data:
+    driver: local
+  # nginx_ssl:
+  #   driver: local
+
+networks:
+  openspp-network:
+    driver: bridge
+    name: openspp-network

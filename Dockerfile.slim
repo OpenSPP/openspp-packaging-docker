@@ -1,0 +1,165 @@
+# ABOUTME: Lightweight OpenSPP container based on Debian bookworm-slim
+# ABOUTME: Optimized for size while maintaining compatibility
+
+# Build arguments for version control
+ARG OPENSPP_VERSION=17.0.1+odoo17.0-1
+ARG DEBIAN_FRONTEND=noninteractive
+ARG TARGETARCH=amd64
+
+# ============================================
+# Stage 1: Download and verify deb package
+# ============================================
+FROM debian:bookworm-slim as downloader
+
+ARG OPENSPP_VERSION
+ARG TARGETARCH
+ARG DEBIAN_FRONTEND
+
+# Install minimal tools for downloading
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+
+# Copy deb package from build context (provided by CI)
+COPY openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb* /tmp/
+
+# Verify package integrity if checksum provided
+RUN if [ -f /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb.sha256 ]; then \
+        echo "Verifying package checksum..." && \
+        sha256sum -c /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb.sha256; \
+    fi
+
+# ============================================
+# Stage 2: Install OpenSPP package
+# ============================================
+FROM debian:bookworm-slim as installer
+
+ARG DEBIAN_FRONTEND
+ARG OPENSPP_VERSION
+ARG TARGETARCH
+
+# Copy verified deb from downloader stage
+COPY --from=downloader /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb /tmp/
+
+# Install OpenSPP package and its dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        /tmp/openspp_${OPENSPP_VERSION}_${TARGETARCH}.deb \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/*.deb
+
+# ============================================
+# Stage 3: Final slim production image
+# ============================================
+FROM debian:bookworm-slim
+
+ARG DEBIAN_FRONTEND
+ARG OPENSPP_VERSION
+ARG BUILD_DATE
+ARG VCS_REF
+
+# OCI Image Specification labels
+LABEL org.opencontainers.image.title="OpenSPP Slim" \
+      org.opencontainers.image.description="Lightweight OpenSPP Social Protection Platform based on Debian slim" \
+      org.opencontainers.image.version="${OPENSPP_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.authors="OpenSPP Team <support@openspp.org>" \
+      org.opencontainers.image.url="https://openspp.org" \
+      org.opencontainers.image.documentation="https://docs.openspp.org" \
+      org.opencontainers.image.source="https://github.com/openspp/openspp-packaging-docker" \
+      org.opencontainers.image.vendor="OpenSPP" \
+      org.opencontainers.image.licenses="LGPL-3.0" \
+      org.opencontainers.image.base.name="debian:bookworm-slim"
+
+# Install only essential runtime dependencies
+# Keeping this minimal for the slim image
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        fontconfig \
+        fonts-liberation2 \
+        fonts-noto-core \
+        gosu \
+        libpq5 \
+        libssl3 \
+        locales \
+        postgresql-client \
+        python3 \
+        python3-venv \
+        tzdata \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/share/doc/* \
+    && rm -rf /usr/share/man/* \
+    && rm -rf /usr/share/info/*
+
+# Set locale environment
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+# Copy OpenSPP installation from installer stage
+COPY --from=installer /opt/openspp /opt/openspp
+COPY --from=installer /usr/bin/openspp-* /usr/bin/
+COPY --from=installer /etc/openspp /etc/openspp
+
+# Create openspp user and group with consistent IDs
+RUN groupadd -r -g 1000 openspp && \
+    useradd -r -u 1000 -g openspp \
+        -d /var/lib/openspp \
+        -s /bin/bash \
+        -m openspp
+
+# Create necessary directories with proper permissions
+RUN mkdir -p \
+        /var/lib/openspp \
+        /var/log/openspp \
+        /mnt/extra-addons \
+        /opt/openspp/data \
+    && chown -R openspp:openspp \
+        /var/lib/openspp \
+        /var/log/openspp \
+        /mnt/extra-addons \
+        /opt/openspp \
+        /etc/openspp
+
+# Copy configuration and entrypoint scripts
+COPY --chown=openspp:openspp config/odoo.conf /etc/openspp/odoo.conf
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/
+COPY --chmod=755 wait-for-psql.py /usr/local/bin/
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    ODOO_RC=/etc/openspp/odoo.conf \
+    PATH="/opt/openspp/venv/bin:$PATH" \
+    HOME="/var/lib/openspp"
+
+# Create volume mount points
+VOLUME ["/var/lib/openspp", "/mnt/extra-addons"]
+
+# Expose Odoo service ports
+EXPOSE 8069 8071 8072
+
+# Switch to non-root user
+USER openspp
+
+# Set working directory
+WORKDIR /var/lib/openspp
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+    CMD curl -fs http://localhost:8069/web/health || exit 1
+
+# Set entrypoint and default command
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["openspp-server"]

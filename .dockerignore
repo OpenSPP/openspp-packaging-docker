@@ -1,0 +1,95 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+LICENSE
+CHANGELOG
+docs/
+
+# CI/CD
+.woodpecker.yml
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Docker files (except what's needed for build)
+docker-compose*.yml
+Dockerfile*
+!Dockerfile
+!Dockerfile.slim
+
+# Development files
+.env
+.env.*
+*.env
+!example.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+.tox/
+.mypy_cache/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+tmp/
+temp/
+
+# Test files
+tests/
+test/
+*_test.go
+*_test.py
+*.test
+
+# Custom addons (mounted as volume)
+custom-addons/
+
+# Backup files
+backups/
+*.sql
+*.dump
+*.tar
+*.tar.gz
+*.zip
+
+# Build artifacts
+build/
+dist/
+*.deb
+*.rpm
+*.tar.gz
+*.tar.bz2
+
+# Node modules (if any)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Nginx configuration (for development)
+nginx/
+
+# Init scripts (for development)
+init-db/
+
+# Keep only essential files for Docker build
