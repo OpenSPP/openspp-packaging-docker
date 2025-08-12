@@ -39,8 +39,8 @@ steps:
         from_secret: nexus_password
     commands:
       - echo "Testing Docker login to registry..."
-      - echo "Attempting login with NEXUS_USER..."
-      - echo "$NEXUS_PASS" | docker login docker-push.acn.fr -u "$NEXUS_USER" --password-stdin && echo "✓ Login successful!" || echo "✗ Login failed"
+      - echo "Attempting login to internal Nexus at 172.20.0.26:8081..."
+      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8081 -u "$NEXUS_USER" --password-stdin && echo "✓ Login successful!" || echo "✗ Login failed"
     when:
       event: [push, manual]
 
@@ -50,8 +50,8 @@ steps:
     privileged: true
     settings:
       dry_run: true  # Don't actually push
-      registry: docker-push.acn.fr
-      repo: docker-push.acn.fr/openspp/openspp
+      registry: 172.20.0.26:8081
+      repo: 172.20.0.26:8081/openspp/openspp
       dockerfile: Dockerfile
       platforms: linux/amd64
       tags:
@@ -76,10 +76,10 @@ steps:
       - echo "Setting up Docker buildx..."
       - docker buildx create --use --name mybuilder || true
       - docker buildx inspect --bootstrap
-      - echo "Logging in to registry with NEXUS_USER..."
-      - echo "$NEXUS_PASS" | docker login docker-push.acn.fr -u "$NEXUS_USER" --password-stdin
+      - echo "Logging in to internal Nexus registry..."
+      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8081 -u "$NEXUS_USER" --password-stdin
       - echo "Building image..."
-      - docker buildx build --platform linux/amd64 -t docker-push.acn.fr/openspp/openspp:test-manual-${CI_COMMIT_SHA:0:8} -f Dockerfile .
+      - docker buildx build --platform linux/amd64 -t 172.20.0.26:8081/openspp/openspp:test-manual-${CI_COMMIT_SHA:0:8} -f Dockerfile .
       - echo "Build completed (dry run - not pushing)"
     when:
       event: [push, manual]

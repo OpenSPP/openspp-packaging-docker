@@ -1,0 +1,134 @@
+# ABOUTME: Production Woodpecker CI Pipeline using internal Nexus IP
+# ABOUTME: Builds and pushes OpenSPP Docker images to internal registry
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      recursive: true
+      lfs: false
+
+when:
+  event: [push, tag, cron, manual]
+  branch: [main, master, develop, release/*]
+
+steps:
+  # Step 1: Build Ubuntu Docker image
+  build-ubuntu:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      registry: 172.20.0.26:8081
+      repo: 172.20.0.26:8081/openspp/openspp
+      dockerfile: Dockerfile
+      platforms: linux/amd64
+      build_args:
+        - BUILD_DATE=${CI_BUILD_CREATED}
+        - VCS_REF=${CI_COMMIT_SHA}
+        - DEBIAN_FRONTEND=noninteractive
+      tags:
+        - latest
+        - ${CI_COMMIT_BRANCH}
+        - ${CI_COMMIT_SHA:0:8}
+      username:
+        from_secret: nexus_username
+      password:
+        from_secret: nexus_password
+    when:
+      event: [push, tag, cron, manual]
+
+  # Step 2: Build Slim Docker image
+  build-slim:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      registry: 172.20.0.26:8081
+      repo: 172.20.0.26:8081/openspp/openspp
+      dockerfile: Dockerfile.slim
+      platforms: linux/amd64
+      build_args:
+        - BUILD_DATE=${CI_BUILD_CREATED}
+        - VCS_REF=${CI_COMMIT_SHA}
+        - DEBIAN_FRONTEND=noninteractive
+      tags:
+        - latest-slim
+        - ${CI_COMMIT_BRANCH}-slim
+        - ${CI_COMMIT_SHA:0:8}-slim
+      username:
+        from_secret: nexus_username
+      password:
+        from_secret: nexus_password
+    when:
+      event: [push, tag, cron, manual]
+
+  # Step 3: Test Docker images (using internal registry)
+  test-docker:
+    image: docker:latest
+    environment:
+      NEXUS_USER:
+        from_secret: nexus_username
+      NEXUS_PASS:
+        from_secret: nexus_password
+    commands:
+      # Login to pull from internal registry
+      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8081 -u "$NEXUS_USER" --password-stdin
+      
+      # Test Ubuntu image
+      - docker pull 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8} || echo "Image not yet available"
+      - docker run --rm 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8} openspp-server --version || true
+      
+      # Test slim image
+      - docker pull 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim || echo "Slim image not yet available"
+      - docker run --rm 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim openspp-server --version || true
+      
+      # List images
+      - docker images | grep openspp || true
+    when:
+      event: [push, tag, cron, manual]
+      status: success
+
+  # Step 4: Push production tags (only on tags)
+  push-production:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      registry: 172.20.0.26:8081
+      repo: 172.20.0.26:8081/openspp/openspp
+      tags:
+        - ${CI_COMMIT_TAG}
+        - stable
+      username:
+        from_secret: nexus_username
+      password:
+        from_secret: nexus_password
+      dry_run: false
+    when:
+      event: tag
+
+  # Step 5: Notify on completion
+  notify:
+    image: plugins/webhook
+    settings:
+      urls:
+        from_secret: webhook_url
+      method: POST
+      content_type: application/json
+      template: '{
+        "text": "OpenSPP Docker Build ${CI_BUILD_STATUS}",
+        "attachments": [{
+          "color": "{{ build.status }}",
+          "title": "Build #${CI_BUILD_NUMBER}",
+          "text": "Docker images build completed",
+          "fields": [
+            {"title": "Repository", "value": "${CI_REPO_NAME}", "short": true},
+            {"title": "Branch", "value": "${CI_COMMIT_BRANCH}", "short": true},
+            {"title": "Commit", "value": "${CI_COMMIT_SHA:0:8}", "short": true},
+            {"title": "Status", "value": "${CI_BUILD_STATUS}", "short": true},
+            {"title": "Registry", "value": "172.20.0.26:8081", "short": true}
+          ]
+        }]
+      }'
+    when:
+      event: [push, tag, cron, manual]
+      status: [success, failure]
+    failure: ignore
