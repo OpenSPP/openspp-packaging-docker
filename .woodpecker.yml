@@ -1,13 +1,12 @@
 # Woodpecker CI Pipeline for OpenSPP Docker Images
 # Builds both standard and slim images for multiple architectures
+#
+# Note: The woodpeckerci/plugin-docker-buildx plugin requires privileged mode.
+# Add it to WOODPECKER_PLUGINS_PRIVILEGED in your Woodpecker server configuration.
 
 when:
   event: [push, tag, pull_request]
   branch: [main, master, develop, release/*]
-
-# Global environment variables
-environment:
-  DOCKER_BUILDKIT: 1
 
 # Pipeline steps
 steps:
