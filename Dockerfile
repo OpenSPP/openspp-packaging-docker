@@ -44,9 +44,12 @@ ARG TARGETARCH
 COPY --from=downloader /etc/apt/keyrings/openspp.gpg /etc/apt/keyrings/
 COPY --from=downloader /etc/apt/sources.list.d/openspp.list /etc/apt/sources.list.d/
 
-# Install OpenSPP package from APT repository
+# Install ca-certificates first, then OpenSPP package from APT repository
 # The package and its dependencies will be automatically resolved
 RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+    && apt-get update && \
     apt-get install -y --no-install-recommends \
         openspp-17-daily \
     && apt-get clean \
