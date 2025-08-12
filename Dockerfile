@@ -45,13 +45,19 @@ COPY --from=downloader /etc/apt/keyrings/openspp.gpg /etc/apt/keyrings/
 COPY --from=downloader /etc/apt/sources.list.d/openspp.list /etc/apt/sources.list.d/
 
 # Install ca-certificates first, then OpenSPP package from APT repository
-# The package and its dependencies will be automatically resolved
+# Create a fake systemctl to handle postinst scripts in Docker
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
     && apt-get update && \
-    apt-get install -y --no-install-recommends \
+    # Create fake systemctl for Docker installation \
+    && echo '#!/bin/sh\nexit 0' > /usr/bin/systemctl \
+    && chmod +x /usr/bin/systemctl \
+    # Install OpenSPP package \
+    && apt-get install -y --no-install-recommends \
         openspp-17-daily \
+    # Remove fake systemctl after installation \
+    && rm -f /usr/bin/systemctl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
