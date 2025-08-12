@@ -5,9 +5,11 @@
 
 # Variables
 IMAGE_TAG ?= daily
-REGISTRY ?= docker.io
+REGISTRY ?= docker.acn.fr
+PUSH_REGISTRY ?= docker-push.acn.fr
 REPO ?= openspp/openspp
 IMAGE_NAME = $(REGISTRY)/$(REPO)
+PUSH_IMAGE_NAME = $(PUSH_REGISTRY)/$(REPO)
 COMPOSE_FILE ?= docker-compose.yml
 COMPOSE_PROD_FILE ?= docker-compose.prod.yml
 
@@ -32,6 +34,8 @@ build: ## Build the standard Ubuntu-based image
 		--build-arg VCS_REF=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		-t $(IMAGE_NAME):$(IMAGE_TAG) \
 		-t $(IMAGE_NAME):latest \
+		-t $(PUSH_IMAGE_NAME):$(IMAGE_TAG) \
+		-t $(PUSH_IMAGE_NAME):latest \
 		-f Dockerfile .
 
 build-slim: ## Build the lightweight Debian-based image
@@ -42,6 +46,8 @@ build-slim: ## Build the lightweight Debian-based image
 		--build-arg VCS_REF=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		-t $(IMAGE_NAME):$(IMAGE_TAG)-slim \
 		-t $(IMAGE_NAME):latest-slim \
+		-t $(PUSH_IMAGE_NAME):$(IMAGE_TAG)-slim \
+		-t $(PUSH_IMAGE_NAME):latest-slim \
 		-f Dockerfile.slim .
 
 build-all: build build-slim ## Build both standard and slim images
@@ -144,13 +150,17 @@ backup: ## Backup database and filestore
 	@docker-compose -f $(COMPOSE_FILE) exec openspp tar -czf - /var/lib/openspp > backups/filestore_$(shell date +%Y%m%d_%H%M%S).tar.gz
 	@echo "$(GREEN)Backup completed in ./backups/$(NC)"
 
-push: ## Push images to registry
-	@echo "$(GREEN)Pushing images to $(REGISTRY)...$(NC)"
-	docker push $(IMAGE_NAME):$(IMAGE_TAG)
-	docker push $(IMAGE_NAME):latest
-	docker push $(IMAGE_NAME):$(IMAGE_TAG)-slim
-	docker push $(IMAGE_NAME):latest-slim
+push: ## Push images to Nexus registry
+	@echo "$(GREEN)Pushing images to $(PUSH_REGISTRY)...$(NC)"
+	@echo "$(YELLOW)Note: Make sure you're logged in: docker login $(PUSH_REGISTRY)$(NC)"
+	docker push $(PUSH_IMAGE_NAME):$(IMAGE_TAG)
+	docker push $(PUSH_IMAGE_NAME):latest
+	docker push $(PUSH_IMAGE_NAME):$(IMAGE_TAG)-slim
+	docker push $(PUSH_IMAGE_NAME):latest-slim
 	@echo "$(GREEN)Images pushed successfully$(NC)"
+	@echo "$(GREEN)Images available for public access at:$(NC)"
+	@echo "  $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo "  $(IMAGE_NAME):$(IMAGE_TAG)-slim"
 
 scan: ## Security scan with Trivy
 	@echo "$(GREEN)Scanning images for vulnerabilities...$(NC)"
@@ -161,9 +171,11 @@ scan: ## Security scan with Trivy
 info: ## Show environment information
 	@echo "$(GREEN)OpenSPP Docker Environment Information$(NC)"
 	@echo "Image Tag: $(IMAGE_TAG)"
-	@echo "Registry: $(REGISTRY)"
+	@echo "Public Registry: $(REGISTRY)"
+	@echo "Push Registry: $(PUSH_REGISTRY)"
 	@echo "Repository: $(REPO)"
-	@echo "Image: $(IMAGE_NAME)"
+	@echo "Public Image: $(IMAGE_NAME)"
+	@echo "Push Image: $(PUSH_IMAGE_NAME)"
 	@echo "APT Repository: https://builds.acn.fr/repository/apt-openspp-daily"
 	@echo ""
 	@echo "$(YELLOW)Container Status:$(NC)"
@@ -191,3 +203,8 @@ prod-check: ## Validate production readiness
 	@docker-compose -f $(COMPOSE_FILE) exec openspp grep "admin_passwd" /etc/openspp/odoo.conf | grep -q "admin_passwd = admin" && echo "$(RED)✗ Using default password$(NC)" || echo "$(GREEN)✓$(NC)"
 	@echo ""
 	@echo "$(GREEN)Production check complete$(NC)"
+
+login: ## Login to Nexus Docker registry
+	@echo "$(GREEN)Logging in to Nexus registry: $(PUSH_REGISTRY)$(NC)"
+	@docker login $(PUSH_REGISTRY)
+	@echo "$(GREEN)Successfully logged in to $(PUSH_REGISTRY)$(NC)"

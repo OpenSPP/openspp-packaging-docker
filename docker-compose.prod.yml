@@ -84,7 +84,7 @@ services:
 
   # OpenSPP Application (Using slim image for production)
   openspp:
-    image: ${REGISTRY:-docker.io}/openspp/openspp:${IMAGE_TAG:-daily}-slim
+    image: ${REGISTRY:-docker.acn.fr}/openspp/openspp:${IMAGE_TAG:-daily}-slim
     container_name: openspp_app_prod
     restart: always
     depends_on:

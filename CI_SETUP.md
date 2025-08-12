@@ -1,5 +1,11 @@
 # CI/CD Setup Guide for Woodpecker
 
+## Docker Registry Configuration
+
+This project uses ACN Nexus Docker Registry:
+- **Push Registry:** `docker-push.acn.fr` (requires authentication)
+- **Public Registry:** `docker.acn.fr` (anonymous pull access)
+
 ## Prerequisites
 
 ### Server Configuration
@@ -24,15 +30,11 @@ This can be set in:
 
 The pipeline requires the following secrets to be configured in Woodpecker:
 
-1. **Docker Registry Credentials** (for pushing images):
-   - `docker_username`: Docker Hub or registry username
-   - `docker_password`: Docker Hub or registry password/token
+1. **Nexus Registry Credentials** (for pushing images):
+   - `nexus_username`: Nexus username (e.g., `admin`)
+   - `nexus_password`: Nexus password
 
-2. **Production Registry Credentials** (optional, for production deployments):
-   - `prod_docker_username`: Production registry username
-   - `prod_docker_password`: Production registry password/token
-
-3. **Slack Webhook** (optional, for notifications):
+2. **Slack Webhook** (optional, for notifications):
    - `slack_webhook`: Slack webhook URL for build notifications
 
 ### Setting Secrets in Woodpecker
@@ -40,12 +42,12 @@ The pipeline requires the following secrets to be configured in Woodpecker:
 Using the Woodpecker CLI:
 ```bash
 woodpecker secret add -repository openspp/openspp-packaging-docker \
-  -name docker_username \
-  -value "your-docker-username"
+  -name nexus_username \
+  -value "admin"
 
 woodpecker secret add -repository openspp/openspp-packaging-docker \
-  -name docker_password \
-  -value "your-docker-password"
+  -name nexus_password \
+  -value "your-nexus-password"
 ```
 
 Or via the Woodpecker UI:
@@ -80,9 +82,15 @@ If you cannot enable privileged mode on your Woodpecker server, you can use the 
 ### Build fails with "unauthorized"
 
 **Solution**: Check that:
-1. Docker credentials secrets are properly configured
+1. Nexus credentials secrets are properly configured
 2. The credentials have push access to the target repository
-3. The registry URL is correct in the pipeline configuration
+3. The registry URLs are correct:
+   - Push: `docker-push.acn.fr`
+   - Pull: `docker.acn.fr`
+4. Test authentication locally:
+   ```bash
+   docker login docker-push.acn.fr -u admin
+   ```
 
 ## Pipeline Workflow
 
@@ -107,10 +115,17 @@ The pipeline triggers on:
 ## Environment Variables
 
 The pipeline uses these CI variables (automatically provided by Woodpecker):
-- `CI_REGISTRY`: Docker registry URL
+- `CI_REGISTRY`: Docker registry URL (defaults to `docker-push.acn.fr`)
 - `CI_REPO_OWNER`: Repository owner/organization
 - `CI_COMMIT_TAG`: Git tag (for releases)
 - `CI_COMMIT_BRANCH`: Git branch name
 - `CI_COMMIT_SHA`: Git commit hash
 - `CI_BUILD_CREATED`: Build timestamp
-- `PROD_REGISTRY`: Production registry URL (optional)
+- `PROD_REGISTRY`: Production registry URL (defaults to `docker-push.acn.fr`)
+
+## Registry URLs
+
+- **Push Operations:** `docker-push.acn.fr/openspp/openspp`
+- **Public Access:** `docker.acn.fr/openspp/openspp`
+
+Images are automatically available at the public URL after being pushed to the private registry.

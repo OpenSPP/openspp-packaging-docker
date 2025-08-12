@@ -4,6 +4,12 @@ Production-ready Docker images for OpenSPP Social Protection Platform based on O
 
 > **Note:** This configuration uses OpenSPP daily builds from the [apt-openspp-daily](https://builds.acn.fr/repository/apt-openspp-daily/) repository. The package name is `openspp-17-daily`.
 
+## Docker Registry
+
+Images are hosted on ACN Nexus Docker Registry:
+- **Public access (pull):** `docker.acn.fr/openspp/openspp`
+- **Push access:** `docker-push.acn.fr/openspp/openspp` (requires authentication)
+
 ## Features
 
 - 🚀 **Multi-architecture support** (amd64, arm64)
@@ -66,7 +72,7 @@ docker run -d \
   -e DB_USER=openspp \
   -e DB_PASSWORD=openspp \
   -e ODOO_ADMIN_PASSWORD=admin \
-  openspp/openspp:latest
+  docker.acn.fr/openspp/openspp:latest
 ```
 
 ## Image Variants
@@ -75,13 +81,13 @@ docker run -d \
 - **Base**: Ubuntu 24.04 LTS
 - **Size**: ~1.5GB
 - **Use case**: Production deployments requiring maximum compatibility
-- **Tag**: `openspp/openspp:latest`
+- **Tag**: `docker.acn.fr/openspp/openspp:latest`
 
 ### Slim Image (Debian Bookworm)
 - **Base**: Debian bookworm-slim
 - **Size**: ~1.0GB
 - **Use case**: Resource-constrained environments
-- **Tag**: `openspp/openspp:latest-slim`
+- **Tag**: `docker.acn.fr/openspp/openspp:latest-slim`
 
 ## Configuration
 
@@ -189,16 +195,35 @@ See [kubernetes/](./kubernetes/) directory for Helm charts and manifests.
 
 ```bash
 # Build standard image (installs from APT repository)
-docker build -t openspp:local .
+make build
 
 # Build slim image (installs from APT repository)
-docker build -f Dockerfile.slim -t openspp:local-slim .
+make build-slim
+
+# Build both images
+make build-all
 
 # Build for multiple architectures
 docker buildx build --platform linux/amd64,linux/arm64 -t openspp:local .
 ```
 
 Note: The images automatically install the latest daily build from the OpenSPP APT repository at https://builds.acn.fr/repository/apt-openspp-daily/
+
+### Pushing to Nexus Registry
+
+```bash
+# Login to Nexus registry
+make login
+# Or manually:
+docker login docker-push.acn.fr
+
+# Push images
+make push
+```
+
+Images will be available at:
+- `docker.acn.fr/openspp/openspp:latest` (public access)
+- `docker.acn.fr/openspp/openspp:latest-slim` (public access)
 
 ### CI/CD Pipeline
 

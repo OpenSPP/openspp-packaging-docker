@@ -26,8 +26,8 @@ steps:
     when:
       event: [push, tag]
     settings:
-      registry: ${CI_REGISTRY:-docker.io}
-      repo: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp
+      registry: ${CI_REGISTRY:-docker-push.acn.fr}
+      repo: ${CI_REGISTRY:-docker-push.acn.fr}/openspp/openspp
       dockerfile: Dockerfile
       platforms: linux/amd64,linux/arm64
       build_args:
@@ -38,13 +38,13 @@ steps:
         - ${CI_COMMIT_BRANCH}
         - ${CI_COMMIT_SHA:0:8}
       username:
-        from_secret: docker_username
+        from_secret: nexus_username
       password:
-        from_secret: docker_password
+        from_secret: nexus_password
       cache_from:
-        - ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache
+        - ${CI_REGISTRY:-docker-push.acn.fr}/openspp/openspp:buildcache
       cache_to:
-        - type=registry,ref=${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache,mode=max
+        - type=registry,ref=${CI_REGISTRY:-docker-push.acn.fr}/openspp/openspp:buildcache,mode=max
 
   # Step 3: Build multi-arch Docker images (slim Debian)
   build-docker-slim:
@@ -53,8 +53,8 @@ steps:
     when:
       event: [push, tag]
     settings:
-      registry: ${CI_REGISTRY:-docker.io}
-      repo: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp
+      registry: ${CI_REGISTRY:-docker-push.acn.fr}
+      repo: ${CI_REGISTRY:-docker-push.acn.fr}/openspp/openspp
       dockerfile: Dockerfile.slim
       platforms: linux/amd64,linux/arm64
       build_args:
@@ -65,13 +65,13 @@ steps:
         - ${CI_COMMIT_BRANCH}-slim
         - ${CI_COMMIT_SHA:0:8}-slim
       username:
-        from_secret: docker_username
+        from_secret: nexus_username
       password:
-        from_secret: docker_password
+        from_secret: nexus_password
       cache_from:
-        - ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache-slim
+        - ${CI_REGISTRY:-docker-push.acn.fr}/openspp/openspp:buildcache-slim
       cache_to:
-        - type=registry,ref=${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:buildcache-slim,mode=max
+        - type=registry,ref=${CI_REGISTRY:-docker-push.acn.fr}/openspp/openspp:buildcache-slim,mode=max
 
   # Step 4: Security scan of Docker images
   scan-docker:
@@ -79,19 +79,19 @@ steps:
     when:
       event: [push, tag]
     commands:
-      # Scan Ubuntu image
+      # Scan Ubuntu image (using public registry URL)
       - trivy image --severity HIGH,CRITICAL --exit-code 0 
-          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}
+          docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}
       
       # Scan slim image
       - trivy image --severity HIGH,CRITICAL --exit-code 0 
-          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}-slim
+          docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim
       
       # Generate reports
       - trivy image --format json --output trivy-ubuntu.json 
-          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}
+          docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}
       - trivy image --format json --output trivy-slim.json 
-          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}-slim
+          docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim
 
   # Step 5: Test Docker images
   test-docker:
@@ -99,19 +99,19 @@ steps:
     when:
       event: [push, tag]
     commands:
-      # Test Ubuntu image
-      - docker run --rm ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8} 
+      # Test Ubuntu image (using public registry URL)
+      - docker run --rm docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8} 
           openspp-server --version
       
       # Test slim image
-      - docker run --rm ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}-slim 
+      - docker run --rm docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim 
           openspp-server --version
       
       # Test health check endpoint
       - |
         docker run -d --name test-openspp -p 8069:8069 \
           -e SKIP_DB_WAIT=true \
-          ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_SHA:0:8}
+          docker.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}
         sleep 30
         curl -f http://localhost:8069/web/health || exit 1
         docker stop test-openspp
@@ -124,16 +124,16 @@ steps:
     when:
       event: tag
     settings:
-      registry: ${PROD_REGISTRY}
-      repo: ${PROD_REGISTRY}/${PROD_REPO}/openspp
+      registry: ${PROD_REGISTRY:-docker-push.acn.fr}
+      repo: ${PROD_REGISTRY:-docker-push.acn.fr}/openspp/openspp
       tags:
         - ${CI_COMMIT_TAG}
         - latest
         - stable
       username:
-        from_secret: prod_docker_username
+        from_secret: nexus_username
       password:
-        from_secret: prod_docker_password
+        from_secret: nexus_password
       dry_run: false
 
   # Step 7: Update deployment manifests
@@ -145,7 +145,7 @@ steps:
       - |
         git clone https://github.com/${CI_REPO_OWNER}/openspp-k8s-manifests.git
         cd openspp-k8s-manifests
-        find deployments -name "*.yaml" -exec sed -i "s|image:.*openspp:.*|image: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_TAG}|g" {} \;
+        find deployments -name "*.yaml" -exec sed -i "s|image:.*openspp:.*|image: docker.acn.fr/openspp/openspp:${CI_COMMIT_TAG}|g" {} \;
         git add .
         git commit -m "Update OpenSPP image to ${CI_COMMIT_TAG}"
         git push
