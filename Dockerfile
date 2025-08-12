@@ -134,9 +134,9 @@ COPY --from=installer /usr/bin/openspp-* /usr/bin/
 COPY --from=installer /etc/openspp /etc/openspp
 
 # Create openspp user and group with consistent IDs
-# Using UID/GID 1000 for better compatibility with host systems
-RUN groupadd -r -g 1000 openspp && \
-    useradd -r -u 1000 -g openspp \
+# Check if GID 1000 exists, if so use a different one (9999)
+RUN (groupadd -r -g 1000 openspp 2>/dev/null || groupadd -r openspp) && \
+    useradd -r -g openspp \
         -d /var/lib/openspp \
         -s /bin/bash \
         -m openspp
