@@ -26,26 +26,21 @@ git clone https://github.com/openspp/openspp-packaging-docker.git
 cd openspp-packaging-docker
 ```
 
-2. Copy the deb package to the build context:
+2. Build and start the services:
 ```bash
-# For daily builds from openspp-packaging-v2
-cp ../openspp-packaging-v2/openspp-17-daily_*.deb .
+# Build the image (pulls from APT repository)
+docker-compose build
 
-# Or download directly from Nexus (daily builds)
-# wget https://builds.acn.fr/repository/apt-openspp-daily/pool/main/o/openspp-17-daily/openspp-17-daily_*.deb
-```
-
-3. Start the services:
-```bash
+# Start the services
 docker-compose up -d
 ```
 
-4. Initialize the database (first run only):
+3. Initialize the database (first run only):
 ```bash
 docker-compose exec openspp env INIT_DATABASE=true openspp-server
 ```
 
-5. Access OpenSPP at http://localhost:8069
+4. Access OpenSPP at http://localhost:8069
 
 Default credentials:
 - Username: admin
@@ -193,24 +188,25 @@ See [kubernetes/](./kubernetes/) directory for Helm charts and manifests.
 ### Local Build
 
 ```bash
-# Build standard image
+# Build standard image (installs from APT repository)
 docker build -t openspp:local .
 
-# Build slim image
+# Build slim image (installs from APT repository)
 docker build -f Dockerfile.slim -t openspp:local-slim .
 
 # Build for multiple architectures
 docker buildx build --platform linux/amd64,linux/arm64 -t openspp:local .
 ```
 
+Note: The images automatically install the latest daily build from the OpenSPP APT repository at https://builds.acn.fr/repository/apt-openspp-daily/
+
 ### CI/CD Pipeline
 
 The Woodpecker CI pipeline automatically:
-1. Builds the deb package from source
-2. Creates multi-arch Docker images
-3. Runs security scans with Trivy
-4. Tests the images
-5. Pushes to registry on tags
+1. Creates multi-arch Docker images (pulling from APT repository)
+2. Runs security scans with Trivy
+3. Tests the images
+4. Pushes to registry on tags
 
 ## Monitoring
 

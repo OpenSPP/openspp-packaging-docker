@@ -2,9 +2,33 @@
 
 Based on review of official Odoo Docker setup and OpenSPP Installation Guide.
 
-> **Note:** Configuration updated to use OpenSPP daily builds (`openspp-17-daily`) from https://builds.acn.fr/repository/apt-openspp-daily/
+> **Note:** Configuration updated to install directly from OpenSPP APT repository instead of copying local deb files.
+> 
+> **Repository:** https://builds.acn.fr/repository/apt-openspp-daily/
+> **Package:** `openspp-17-daily`
 
 ## Key Improvements Implemented
+
+### APT Repository Integration (Latest Update):
+
+1. **Direct APT Installation**
+   - Removed dependency on local deb file copying
+   - Docker images now pull directly from APT repository during build
+   - Automatic updates to latest daily build
+   - Simplified CI/CD pipeline (no deb build step needed)
+
+2. **Repository Configuration**
+   - Uses signed-by GPG key for secure APT repository
+   - Supports both Ubuntu (noble) and Debian (bookworm) distributions
+   - Repository URL: https://builds.acn.fr/repository/apt-openspp-daily/
+   - GPG Key: https://builds.acn.fr/repository/apt-keys/openspp/public.key
+
+3. **Benefits**
+   - Always get latest daily build automatically
+   - No need to manage deb files manually
+   - Reduced build context size
+   - Simplified build process
+   - Better integration with CI/CD pipelines
 
 ### From Official Odoo Docker:
 
@@ -117,8 +141,7 @@ Based on review of official Odoo Docker setup and OpenSPP Installation Guide.
 
 ## Next Steps:
 
-1. Copy deb package to build context
-2. Run `make build-all` to build images
-3. Run `make run` to start development environment
-4. Run `make init-db` for first-time setup
-5. Run `make prod-check` to validate production readiness
+1. Run `make build-all` to build images (pulls from APT repository)
+2. Run `make run` to start development environment
+3. Run `make init-db` for first-time setup
+4. Run `make prod-check` to validate production readiness

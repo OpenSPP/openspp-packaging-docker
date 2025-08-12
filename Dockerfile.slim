@@ -2,20 +2,18 @@
 # ABOUTME: Optimized for size while maintaining compatibility
 
 # Build arguments for version control
-ARG OPENSPP_VERSION=17.0.1-daily+odoo17.0-1
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGETARCH=amd64
 
 # ============================================
-# Stage 1: Download and verify deb package
+# Stage 1: Configure APT repository
 # ============================================
 FROM debian:bookworm-slim as downloader
 
-ARG OPENSPP_VERSION
 ARG TARGETARCH
 ARG DEBIAN_FRONTEND
 
-# Install minimal tools for downloading
+# Install minimal tools for repository setup
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -25,14 +23,14 @@ RUN apt-get update && \
 
 WORKDIR /tmp
 
-# Copy deb package from build context (provided by CI)
-COPY openspp-17-daily_*_${TARGETARCH}.deb* /tmp/
-
-# Verify package integrity if checksum provided
-RUN if [ -f /tmp/openspp-17-daily_*_${TARGETARCH}.deb.sha256 ]; then \
-        echo "Verifying package checksum..." && \
-        sha256sum -c /tmp/openspp-17-daily_*_${TARGETARCH}.deb.sha256; \
-    fi
+# Configure OpenSPP daily APT repository
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://builds.acn.fr/repository/apt-keys/openspp/public.key | \
+    gpg --dearmor -o /etc/apt/keyrings/openspp.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/openspp.gpg] https://builds.acn.fr/repository/apt-openspp-daily bookworm main" > \
+    /etc/apt/sources.list.d/openspp.list && \
+    apt-get update && \
+    apt-cache show openspp-17-daily
 
 # ============================================
 # Stage 2: Install OpenSPP package
@@ -40,18 +38,18 @@ RUN if [ -f /tmp/openspp-17-daily_*_${TARGETARCH}.deb.sha256 ]; then \
 FROM debian:bookworm-slim as installer
 
 ARG DEBIAN_FRONTEND
-ARG OPENSPP_VERSION
 ARG TARGETARCH
 
-# Copy verified deb from downloader stage
-COPY --from=downloader /tmp/openspp-17-daily_*_${TARGETARCH}.deb /tmp/
+# Copy repository configuration from downloader stage
+COPY --from=downloader /etc/apt/keyrings/openspp.gpg /etc/apt/keyrings/
+COPY --from=downloader /etc/apt/sources.list.d/openspp.list /etc/apt/sources.list.d/
 
-# Install OpenSPP package and its dependencies
+# Install OpenSPP package from APT repository
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        /tmp/openspp-17-daily_*_${TARGETARCH}.deb \
+        openspp-17-daily \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/*.deb
+    && rm -rf /var/lib/apt/lists/*
 
 # ============================================
 # Stage 3: Final slim production image
@@ -59,14 +57,13 @@ RUN apt-get update && \
 FROM debian:bookworm-slim
 
 ARG DEBIAN_FRONTEND
-ARG OPENSPP_VERSION
 ARG BUILD_DATE
 ARG VCS_REF
 
 # OCI Image Specification labels
 LABEL org.opencontainers.image.title="OpenSPP Slim" \
       org.opencontainers.image.description="Lightweight OpenSPP Social Protection Platform based on Debian slim" \
-      org.opencontainers.image.version="${OPENSPP_VERSION}" \
+      org.opencontainers.image.version="17.0-daily" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.authors="OpenSPP Team <support@openspp.org>" \

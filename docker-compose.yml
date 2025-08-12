@@ -52,10 +52,9 @@ services:
       context: .
       dockerfile: ${DOCKERFILE:-Dockerfile}
       args:
-        OPENSPP_VERSION: ${OPENSPP_VERSION:-17.0.1-daily+odoo17.0-1}
         BUILD_DATE: ${BUILD_DATE:-}
         VCS_REF: ${VCS_REF:-}
-    image: openspp:${OPENSPP_VERSION:-latest}
+    image: openspp:${IMAGE_TAG:-daily}
     container_name: openspp_app
     restart: unless-stopped
     depends_on:

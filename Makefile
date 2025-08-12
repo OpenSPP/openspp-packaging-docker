@@ -4,7 +4,7 @@
 .PHONY: help build build-slim build-all run stop clean logs shell db-shell test push
 
 # Variables
-OPENSPP_VERSION ?= 17.0.1-daily+odoo17.0-1
+IMAGE_TAG ?= daily
 REGISTRY ?= docker.io
 REPO ?= openspp/openspp
 IMAGE_NAME = $(REGISTRY)/$(REPO)
@@ -26,21 +26,21 @@ help: ## Show this help message
 
 build: ## Build the standard Ubuntu-based image
 	@echo "$(GREEN)Building OpenSPP image (Ubuntu 24.04)...$(NC)"
+	@echo "$(YELLOW)Installing from APT repository: https://builds.acn.fr/repository/apt-openspp-daily$(NC)"
 	docker build \
-		--build-arg OPENSPP_VERSION=$(OPENSPP_VERSION) \
 		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
 		--build-arg VCS_REF=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
-		-t $(IMAGE_NAME):$(OPENSPP_VERSION) \
+		-t $(IMAGE_NAME):$(IMAGE_TAG) \
 		-t $(IMAGE_NAME):latest \
 		-f Dockerfile .
 
 build-slim: ## Build the lightweight Debian-based image
 	@echo "$(GREEN)Building OpenSPP slim image (Debian bookworm)...$(NC)"
+	@echo "$(YELLOW)Installing from APT repository: https://builds.acn.fr/repository/apt-openspp-daily$(NC)"
 	docker build \
-		--build-arg OPENSPP_VERSION=$(OPENSPP_VERSION) \
 		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
 		--build-arg VCS_REF=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
-		-t $(IMAGE_NAME):$(OPENSPP_VERSION)-slim \
+		-t $(IMAGE_NAME):$(IMAGE_TAG)-slim \
 		-t $(IMAGE_NAME):latest-slim \
 		-f Dockerfile.slim .
 
@@ -69,8 +69,8 @@ clean: ## Remove containers, volumes, and images
 	@echo "$(RED)Removing OpenSPP containers and volumes...$(NC)"
 	docker-compose -f $(COMPOSE_FILE) down -v
 	@echo "$(RED)Removing OpenSPP images...$(NC)"
-	docker rmi $(IMAGE_NAME):$(OPENSPP_VERSION) $(IMAGE_NAME):latest || true
-	docker rmi $(IMAGE_NAME):$(OPENSPP_VERSION)-slim $(IMAGE_NAME):latest-slim || true
+	docker rmi $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_NAME):latest || true
+	docker rmi $(IMAGE_NAME):$(IMAGE_TAG)-slim $(IMAGE_NAME):latest-slim || true
 
 logs: ## View OpenSPP container logs
 	docker-compose -f $(COMPOSE_FILE) logs -f openspp
@@ -146,9 +146,9 @@ backup: ## Backup database and filestore
 
 push: ## Push images to registry
 	@echo "$(GREEN)Pushing images to $(REGISTRY)...$(NC)"
-	docker push $(IMAGE_NAME):$(OPENSPP_VERSION)
+	docker push $(IMAGE_NAME):$(IMAGE_TAG)
 	docker push $(IMAGE_NAME):latest
-	docker push $(IMAGE_NAME):$(OPENSPP_VERSION)-slim
+	docker push $(IMAGE_NAME):$(IMAGE_TAG)-slim
 	docker push $(IMAGE_NAME):latest-slim
 	@echo "$(GREEN)Images pushed successfully$(NC)"
 
@@ -160,10 +160,11 @@ scan: ## Security scan with Trivy
 
 info: ## Show environment information
 	@echo "$(GREEN)OpenSPP Docker Environment Information$(NC)"
-	@echo "Version: $(OPENSPP_VERSION)"
+	@echo "Image Tag: $(IMAGE_TAG)"
 	@echo "Registry: $(REGISTRY)"
 	@echo "Repository: $(REPO)"
 	@echo "Image: $(IMAGE_NAME)"
+	@echo "APT Repository: https://builds.acn.fr/repository/apt-openspp-daily"
 	@echo ""
 	@echo "$(YELLOW)Container Status:$(NC)"
 	@docker-compose -f $(COMPOSE_FILE) ps
