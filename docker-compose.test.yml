@@ -1,0 +1,107 @@
+# ABOUTME: Docker Compose configuration for testing OpenSPP images
+# ABOUTME: Quick validation that built images work correctly with database
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: openspp-test-db
+    environment:
+      POSTGRES_USER: openspp
+      POSTGRES_PASSWORD: openspp
+      POSTGRES_DB: openspp_test
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+    networks:
+      - openspp-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openspp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenSPP Application (Ubuntu variant)
+  openspp:
+    image: ${REGISTRY:-docker.acn.fr}/openspp/openspp:${IMAGE_TAG:-latest}
+    container_name: openspp-test-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: openspp
+      DB_PASSWORD: openspp
+      DB_NAME: openspp_test
+      
+      # Odoo Configuration
+      ODOO_ADMIN_PASSWORD: admin
+      ODOO_LIST_DB: True
+      ODOO_LOG_LEVEL: info
+      ODOO_WORKERS: 2
+      ODOO_WITHOUT_DEMO: false
+      
+      # Initialize database on first run
+      INIT_DATABASE: ${INIT_DATABASE:-false}
+      INSTALL_MODULES: ${INSTALL_MODULES:-base,web}
+    ports:
+      - "8069:8069"
+      - "8072:8072"
+    volumes:
+      - test-openspp-data:/var/lib/openspp
+      - ./custom-addons:/mnt/extra-addons:ro
+    networks:
+      - openspp-test
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8069/web/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Alternative: OpenSPP Slim variant (commented out by default)
+  # Uncomment to test slim image instead
+  # openspp-slim:
+  #   image: ${REGISTRY:-docker.acn.fr}/openspp/openspp:${IMAGE_TAG:-latest}-slim
+  #   container_name: openspp-test-slim
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   environment:
+  #     DB_HOST: db
+  #     DB_PORT: 5432
+  #     DB_USER: openspp
+  #     DB_PASSWORD: openspp
+  #     DB_NAME: openspp_test_slim
+  #     ODOO_ADMIN_PASSWORD: admin
+  #     ODOO_LIST_DB: True
+  #     ODOO_LOG_LEVEL: info
+  #     ODOO_WORKERS: 2
+  #     INIT_DATABASE: ${INIT_DATABASE:-false}
+  #   ports:
+  #     - "8070:8069"
+  #     - "8073:8072"
+  #   volumes:
+  #     - test-openspp-slim-data:/var/lib/openspp
+  #     - ./custom-addons:/mnt/extra-addons:ro
+  #   networks:
+  #     - openspp-test
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-fs", "http://localhost:8069/web/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+
+volumes:
+  test-db-data:
+  test-openspp-data:
+  test-openspp-slim-data:
+
+networks:
+  openspp-test:
+    driver: bridge
+    name: openspp-test-network
