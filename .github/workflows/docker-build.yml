@@ -154,7 +154,7 @@ jobs:
     name: Test Docker Images
     needs: [build-ubuntu, build-slim]
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     
     steps:
       - name: Checkout repository
