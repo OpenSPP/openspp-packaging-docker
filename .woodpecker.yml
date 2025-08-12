@@ -1,8 +1,8 @@
 # Woodpecker CI Pipeline for OpenSPP Docker Images
 # Builds both standard and slim images for multiple architectures
 #
-# Note: The woodpeckerci/plugin-docker-buildx plugin requires privileged mode.
-# Add it to WOODPECKER_PLUGINS_PRIVILEGED in your Woodpecker server configuration.
+# This pipeline uses Docker Buildx for multi-architecture builds.
+# The buildx plugin steps are configured with privileged: true as required.
 
 when:
   event: [push, tag, pull_request]
@@ -22,6 +22,7 @@ steps:
   # Step 2: Build multi-arch Docker images (standard Ubuntu)
   build-docker-ubuntu:
     image: woodpeckerci/plugin-docker-buildx
+    privileged: true
     when:
       event: [push, tag]
     settings:
@@ -48,6 +49,7 @@ steps:
   # Step 3: Build multi-arch Docker images (slim Debian)
   build-docker-slim:
     image: woodpeckerci/plugin-docker-buildx
+    privileged: true
     when:
       event: [push, tag]
     settings:
@@ -118,6 +120,7 @@ steps:
   # Step 6: Push to production registry (only on tags)
   push-production:
     image: woodpeckerci/plugin-docker-buildx
+    privileged: true
     when:
       event: tag
     settings:
