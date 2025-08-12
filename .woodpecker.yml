@@ -20,8 +20,6 @@ steps:
   build-ubuntu:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
-    environment:
-      DEBIAN_FRONTEND: noninteractive
     settings:
       registry: docker-push.acn.fr
       repo: docker-push.acn.fr/openspp/openspp
@@ -30,6 +28,7 @@ steps:
       build_args:
         - BUILD_DATE=${CI_BUILD_CREATED}
         - VCS_REF=${CI_COMMIT_SHA}
+        - DEBIAN_FRONTEND=noninteractive
       tags:
         - latest
         - ${CI_COMMIT_BRANCH}
@@ -45,8 +44,6 @@ steps:
   build-slim:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
-    environment:
-      DEBIAN_FRONTEND: noninteractive
     settings:
       registry: docker-push.acn.fr
       repo: docker-push.acn.fr/openspp/openspp
@@ -55,6 +52,7 @@ steps:
       build_args:
         - BUILD_DATE=${CI_BUILD_CREATED}
         - VCS_REF=${CI_COMMIT_SHA}
+        - DEBIAN_FRONTEND=noninteractive
       tags:
         - latest-slim
         - ${CI_COMMIT_BRANCH}-slim

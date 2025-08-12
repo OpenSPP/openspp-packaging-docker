@@ -62,8 +62,17 @@ check_config() {
     # Check if parameter exists in config file
     if grep -q -E "^\s*\b${param}\b\s*=" "$ODOO_RC" 2>/dev/null; then
         # Extract existing value from config
-        value=$(grep -E "^\s*\b${param}\b\s*=" "$ODOO_RC" | cut -d "=" -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/["\n\r]//g')
-        log_info "Using ${param} from config file: ${value}"
+        local config_value=$(grep -E "^\s*\b${param}\b\s*=" "$ODOO_RC" | cut -d "=" -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/["\n\r]//g')
+        
+        # Only use config value if it's not "false" (which means unset in Odoo config)
+        if [ "${config_value}" != "false" ] && [ -n "${config_value}" ]; then
+            value="${config_value}"
+            log_info "Using ${param} from config file: ${value}"
+        else
+            log_info "Using ${param} from environment: ${value}"
+        fi
+    else
+        log_info "Using ${param} from environment: ${value}"
     fi
     
     # Add to arguments array
