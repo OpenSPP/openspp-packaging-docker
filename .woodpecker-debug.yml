@@ -17,27 +17,27 @@ steps:
     image: alpine:latest
     commands:
       - echo "Testing secret availability..."
-      - echo "NEXUS_USERNAME length:" $(echo -n "$NEXUS_USERNAME" | wc -c)
-      - echo "NEXUS_PASSWORD length:" $(echo -n "$NEXUS_PASSWORD" | wc -c)
+      - echo "nexus_username exists:" $(if [ -n "$nexus_username" ]; then echo "YES"; else echo "NO"; fi)
       - echo "nexus_username length:" $(echo -n "$nexus_username" | wc -c)
+      - echo "nexus_password exists:" $(if [ -n "$nexus_password" ]; then echo "YES"; else echo "NO"; fi)
       - echo "nexus_password length:" $(echo -n "$nexus_password" | wc -c)
-    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD, nexus_username, nexus_password]
+    secrets: [nexus_username, nexus_password]
     when:
-      event: manual
+      event: [push, manual]
 
   # Step 2: Test Docker login manually
   test-docker-login:
     image: docker:latest
     commands:
       - echo "Testing Docker login to registry..."
-      - echo "$NEXUS_PASSWORD" | docker login docker-push.acn.fr -u "$NEXUS_USERNAME" --password-stdin || echo "Login failed with NEXUS_USERNAME"
-      - echo "$nexus_password" | docker login docker-push.acn.fr -u "$nexus_username" --password-stdin || echo "Login failed with nexus_username"
-    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD, nexus_username, nexus_password]
+      - echo "Attempting login with nexus_username..."
+      - echo "$nexus_password" | docker login docker-push.acn.fr -u "$nexus_username" --password-stdin && echo "✓ Login successful!" || echo "✗ Login failed"
+    secrets: [nexus_username, nexus_password]
     when:
-      event: manual
+      event: [push, manual]
 
-  # Step 3: Simple build without push to test
-  build-test:
+  # Step 3: Simple build without push to test plugin authentication
+  build-test-plugin:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
@@ -47,15 +47,15 @@ steps:
       dockerfile: Dockerfile
       platforms: linux/amd64
       tags:
-        - test
+        - test-${CI_COMMIT_SHA:0:8}
       username:
         from_secret: nexus_username
       password:
         from_secret: nexus_password
     when:
-      event: manual
+      event: [push, manual]
 
-  # Step 4: Alternative authentication method
+  # Step 4: Alternative authentication method using explicit Docker commands
   build-with-explicit-login:
     image: docker:latest
     privileged: true
@@ -63,11 +63,11 @@ steps:
       - echo "Setting up Docker buildx..."
       - docker buildx create --use --name mybuilder || true
       - docker buildx inspect --bootstrap
-      - echo "Logging in to registry..."
-      - echo "$NEXUS_PASSWORD" | docker login docker-push.acn.fr -u "$NEXUS_USERNAME" --password-stdin
+      - echo "Logging in to registry with nexus_username..."
+      - echo "$nexus_password" | docker login docker-push.acn.fr -u "$nexus_username" --password-stdin
       - echo "Building image..."
-      - docker buildx build --platform linux/amd64 -t docker-push.acn.fr/openspp/openspp:test-manual -f Dockerfile .
+      - docker buildx build --platform linux/amd64 -t docker-push.acn.fr/openspp/openspp:test-manual-${CI_COMMIT_SHA:0:8} -f Dockerfile .
       - echo "Build completed (dry run - not pushing)"
-    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD]
+    secrets: [nexus_username, nexus_password]
     when:
-      event: manual
+      event: [push, manual]
