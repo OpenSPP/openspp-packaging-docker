@@ -24,7 +24,7 @@ steps:
       
       # Login to registry
       - echo "Logging in to Docker registry..."
-      - echo "${NEXUS_PASSWORD}" | docker login docker-push.acn.fr -u "${NEXUS_USERNAME}" --password-stdin
+      - echo "${NEXUS_PASSWORD}" | docker login 172.20.0.26:8082 -u "${NEXUS_USERNAME}" --password-stdin
       
       # Build the image
       - echo "Building Ubuntu image..."
@@ -33,17 +33,21 @@ steps:
           --build-arg VCS_REF="${CI_COMMIT_SHA}" \
           --build-arg DEBIAN_FRONTEND=noninteractive \
           -f Dockerfile \
-          -t docker-push.acn.fr/openspp/openspp:latest \
-          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH} \
-          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8} \
+          -t 172.20.0.26:8082/openspp/openspp:latest \
+          -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_BRANCH} \
+          -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8} \
           .
       
       # Push the images
       - echo "Pushing images..."
-      - docker push docker-push.acn.fr/openspp/openspp:latest
-      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH}
-      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}
-    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD]
+      - docker push 172.20.0.26:8082/openspp/openspp:latest
+      - docker push 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_BRANCH}
+      - docker push 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}
+    environment:
+      NEXUS_USERNAME:
+        from_secret: nexus_username
+      NEXUS_PASSWORD:
+        from_secret: nexus_password
     when:
       event: [push, tag, cron, manual]
 
@@ -58,7 +62,7 @@ steps:
       
       # Login to registry
       - echo "Logging in to Docker registry..."
-      - echo "${NEXUS_PASSWORD}" | docker login docker-push.acn.fr -u "${NEXUS_USERNAME}" --password-stdin
+      - echo "${NEXUS_PASSWORD}" | docker login 172.20.0.26:8082 -u "${NEXUS_USERNAME}" --password-stdin
       
       # Build the slim image
       - echo "Building Slim image..."
@@ -67,17 +71,21 @@ steps:
           --build-arg VCS_REF="${CI_COMMIT_SHA}" \
           --build-arg DEBIAN_FRONTEND=noninteractive \
           -f Dockerfile.slim \
-          -t docker-push.acn.fr/openspp/openspp:latest-slim \
-          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH}-slim \
-          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim \
+          -t 172.20.0.26:8082/openspp/openspp:latest-slim \
+          -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_BRANCH}-slim \
+          -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim \
           .
       
       # Push the images
       - echo "Pushing slim images..."
-      - docker push docker-push.acn.fr/openspp/openspp:latest-slim
-      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH}-slim
-      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim
-    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD]
+      - docker push 172.20.0.26:8082/openspp/openspp:latest-slim
+      - docker push 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_BRANCH}-slim
+      - docker push 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim
+    environment:
+      NEXUS_USERNAME:
+        from_secret: nexus_username
+      NEXUS_PASSWORD:
+        from_secret: nexus_password
     when:
       event: [push, tag, cron, manual]
 

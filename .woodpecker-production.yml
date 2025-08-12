@@ -18,8 +18,8 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
-      registry: 172.20.0.26:8081
-      repo: 172.20.0.26:8081/openspp/openspp
+      registry: 172.20.0.26:8082
+      repo: 172.20.0.26:8082/openspp/openspp
       dockerfile: Dockerfile
       platforms: linux/amd64
       build_args:
@@ -42,8 +42,8 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
-      registry: 172.20.0.26:8081
-      repo: 172.20.0.26:8081/openspp/openspp
+      registry: 172.20.0.26:8082
+      repo: 172.20.0.26:8082/openspp/openspp
       dockerfile: Dockerfile.slim
       platforms: linux/amd64
       build_args:
@@ -71,15 +71,15 @@ steps:
         from_secret: nexus_password
     commands:
       # Login to pull from internal registry
-      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8081 -u "$NEXUS_USER" --password-stdin
+      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8082 -u "$NEXUS_USER" --password-stdin
       
       # Test Ubuntu image
-      - docker pull 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8} || echo "Image not yet available"
-      - docker run --rm 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8} openspp-server --version || true
+      - docker pull 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8} || echo "Image not yet available"
+      - docker run --rm 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8} openspp-server --version || true
       
       # Test slim image
-      - docker pull 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim || echo "Slim image not yet available"
-      - docker run --rm 172.20.0.26:8081/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim openspp-server --version || true
+      - docker pull 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim || echo "Slim image not yet available"
+      - docker run --rm 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim openspp-server --version || true
       
       # List images
       - docker images | grep openspp || true
@@ -92,8 +92,8 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
-      registry: 172.20.0.26:8081
-      repo: 172.20.0.26:8081/openspp/openspp
+      registry: 172.20.0.26:8082
+      repo: 172.20.0.26:8082/openspp/openspp
       tags:
         - ${CI_COMMIT_TAG}
         - stable
@@ -124,7 +124,7 @@ steps:
             {"title": "Branch", "value": "${CI_COMMIT_BRANCH}", "short": true},
             {"title": "Commit", "value": "${CI_COMMIT_SHA:0:8}", "short": true},
             {"title": "Status", "value": "${CI_BUILD_STATUS}", "short": true},
-            {"title": "Registry", "value": "172.20.0.26:8081", "short": true}
+            {"title": "Registry", "value": "172.20.0.26:8082", "short": true}
           ]
         }]
       }'
