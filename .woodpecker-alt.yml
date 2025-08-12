@@ -1,0 +1,101 @@
+# ABOUTME: Alternative Woodpecker CI configuration using manual Docker commands
+# ABOUTME: Works around potential plugin authentication issues
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      recursive: true
+      lfs: false
+
+when:
+  event: [push, tag, cron, manual]
+  branch: [main, master, develop, release/*]
+
+steps:
+  # Build and push Ubuntu image using Docker directly
+  build-ubuntu:
+    image: docker:dind
+    privileged: true
+    commands:
+      # Start Docker daemon
+      - dockerd-entrypoint.sh &
+      - sleep 5
+      
+      # Login to registry
+      - echo "Logging in to Docker registry..."
+      - echo "${NEXUS_PASSWORD}" | docker login docker-push.acn.fr -u "${NEXUS_USERNAME}" --password-stdin
+      
+      # Build the image
+      - echo "Building Ubuntu image..."
+      - docker build \
+          --build-arg BUILD_DATE="${CI_BUILD_CREATED}" \
+          --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+          --build-arg DEBIAN_FRONTEND=noninteractive \
+          -f Dockerfile \
+          -t docker-push.acn.fr/openspp/openspp:latest \
+          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH} \
+          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8} \
+          .
+      
+      # Push the images
+      - echo "Pushing images..."
+      - docker push docker-push.acn.fr/openspp/openspp:latest
+      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH}
+      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}
+    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD]
+    when:
+      event: [push, tag, cron, manual]
+
+  # Build and push Slim image
+  build-slim:
+    image: docker:dind
+    privileged: true
+    commands:
+      # Start Docker daemon
+      - dockerd-entrypoint.sh &
+      - sleep 5
+      
+      # Login to registry
+      - echo "Logging in to Docker registry..."
+      - echo "${NEXUS_PASSWORD}" | docker login docker-push.acn.fr -u "${NEXUS_USERNAME}" --password-stdin
+      
+      # Build the slim image
+      - echo "Building Slim image..."
+      - docker build \
+          --build-arg BUILD_DATE="${CI_BUILD_CREATED}" \
+          --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+          --build-arg DEBIAN_FRONTEND=noninteractive \
+          -f Dockerfile.slim \
+          -t docker-push.acn.fr/openspp/openspp:latest-slim \
+          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH}-slim \
+          -t docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim \
+          .
+      
+      # Push the images
+      - echo "Pushing slim images..."
+      - docker push docker-push.acn.fr/openspp/openspp:latest-slim
+      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_BRANCH}-slim
+      - docker push docker-push.acn.fr/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim
+    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD]
+    when:
+      event: [push, tag, cron, manual]
+
+  # Notify on completion
+  notify:
+    image: plugins/webhook
+    settings:
+      urls:
+        from_secret: webhook_url
+      method: POST
+      content_type: application/json
+      template: '{
+        "text": "OpenSPP Docker Build ${CI_BUILD_STATUS}",
+        "build": "${CI_BUILD_NUMBER}",
+        "branch": "${CI_COMMIT_BRANCH}",
+        "commit": "${CI_COMMIT_SHA:0:8}"
+      }'
+    when:
+      event: [push, tag, cron, manual]
+      status: [success, failure]
+    failure: ignore

@@ -1,0 +1,73 @@
+# ABOUTME: Debug version of Woodpecker CI Pipeline to troubleshoot authentication
+# ABOUTME: Tests registry login and provides diagnostic information
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      recursive: true
+      lfs: false
+
+when:
+  event: [push, tag, cron, manual]
+
+steps:
+  # Step 1: Test secret availability
+  test-secrets:
+    image: alpine:latest
+    commands:
+      - echo "Testing secret availability..."
+      - echo "NEXUS_USERNAME length:" $(echo -n "$NEXUS_USERNAME" | wc -c)
+      - echo "NEXUS_PASSWORD length:" $(echo -n "$NEXUS_PASSWORD" | wc -c)
+      - echo "nexus_username length:" $(echo -n "$nexus_username" | wc -c)
+      - echo "nexus_password length:" $(echo -n "$nexus_password" | wc -c)
+    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD, nexus_username, nexus_password]
+    when:
+      event: manual
+
+  # Step 2: Test Docker login manually
+  test-docker-login:
+    image: docker:latest
+    commands:
+      - echo "Testing Docker login to registry..."
+      - echo "$NEXUS_PASSWORD" | docker login docker-push.acn.fr -u "$NEXUS_USERNAME" --password-stdin || echo "Login failed with NEXUS_USERNAME"
+      - echo "$nexus_password" | docker login docker-push.acn.fr -u "$nexus_username" --password-stdin || echo "Login failed with nexus_username"
+    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD, nexus_username, nexus_password]
+    when:
+      event: manual
+
+  # Step 3: Simple build without push to test
+  build-test:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      dry_run: true  # Don't actually push
+      registry: docker-push.acn.fr
+      repo: docker-push.acn.fr/openspp/openspp
+      dockerfile: Dockerfile
+      platforms: linux/amd64
+      tags:
+        - test
+      username:
+        from_secret: nexus_username
+      password:
+        from_secret: nexus_password
+    when:
+      event: manual
+
+  # Step 4: Alternative authentication method
+  build-with-explicit-login:
+    image: docker:latest
+    privileged: true
+    commands:
+      - echo "Setting up Docker buildx..."
+      - docker buildx create --use --name mybuilder || true
+      - docker buildx inspect --bootstrap
+      - echo "Logging in to registry..."
+      - echo "$NEXUS_PASSWORD" | docker login docker-push.acn.fr -u "$NEXUS_USERNAME" --password-stdin
+      - echo "Building image..."
+      - docker buildx build --platform linux/amd64 -t docker-push.acn.fr/openspp/openspp:test-manual -f Dockerfile .
+      - echo "Build completed (dry run - not pushing)"
+    secrets: [NEXUS_USERNAME, NEXUS_PASSWORD]
+    when:
+      event: manual
