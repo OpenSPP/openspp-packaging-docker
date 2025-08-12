@@ -27,7 +27,7 @@ WORKDIR /tmp
 RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://builds.acn.fr/repository/apt-keys/openspp/public.key | \
     gpg --dearmor -o /etc/apt/keyrings/openspp.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/openspp.gpg] https://builds.acn.fr/repository/apt-openspp-daily noble main" > \
+    echo "deb [signed-by=/etc/apt/keyrings/openspp.gpg] https://builds.acn.fr/repository/apt-openspp-daily bookworm main" > \
     /etc/apt/sources.list.d/openspp.list && \
     apt-get update && \
     apt-cache show openspp-17-daily
