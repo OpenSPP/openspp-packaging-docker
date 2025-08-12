@@ -112,11 +112,6 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
-# Copy OpenSPP installation from installer stage
-COPY --from=installer /opt/openspp /opt/openspp
-COPY --from=installer /usr/bin/openspp-* /usr/bin/
-COPY --from=installer /etc/openspp /etc/openspp
-
 # Create openspp user and group with consistent IDs
 # Check if GID 1000 exists, if so use a different one (9999)
 RUN (groupadd -r -g 1000 openspp 2>/dev/null || groupadd -r openspp) && \
@@ -124,6 +119,11 @@ RUN (groupadd -r -g 1000 openspp 2>/dev/null || groupadd -r openspp) && \
         -d /var/lib/openspp \
         -s /bin/bash \
         -m openspp
+
+# Copy OpenSPP installation from installer stage with correct ownership
+COPY --chown=openspp:openspp --from=installer /opt/openspp /opt/openspp
+COPY --from=installer /usr/bin/openspp-* /usr/bin/
+COPY --chown=openspp:openspp --from=installer /etc/openspp /etc/openspp
 
 # Create necessary directories with proper permissions
 RUN mkdir -p \
@@ -135,8 +135,7 @@ RUN mkdir -p \
         /var/lib/openspp \
         /var/log/openspp \
         /mnt/extra-addons \
-        /opt/openspp \
-        /etc/openspp
+        /opt/openspp/data
 
 # Copy configuration and entrypoint scripts
 COPY --chown=openspp:openspp config/odoo.conf /etc/openspp/odoo.conf
