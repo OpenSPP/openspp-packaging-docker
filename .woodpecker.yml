@@ -140,12 +140,13 @@ steps:
     when:
       event: tag
     commands:
-      - git clone https://github.com/${CI_REPO_OWNER}/openspp-k8s-manifests.git
-      - cd openspp-k8s-manifests
-      - sed -i "s|image:.*openspp:.*|image: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_TAG}|g" deployments/*.yaml
-      - git add .
-      - git commit -m "Update OpenSPP image to ${CI_COMMIT_TAG}"
-      - git push
+      - |
+        git clone https://github.com/${CI_REPO_OWNER}/openspp-k8s-manifests.git
+        cd openspp-k8s-manifests
+        find deployments -name "*.yaml" -exec sed -i "s|image:.*openspp:.*|image: ${CI_REGISTRY:-docker.io}/${CI_REPO_OWNER}/openspp:${CI_COMMIT_TAG}|g" {} \;
+        git add .
+        git commit -m "Update OpenSPP image to ${CI_COMMIT_TAG}"
+        git push
 
   # Step 8: Notify on completion
   notify:
