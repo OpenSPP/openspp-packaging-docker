@@ -1,0 +1,149 @@
+# ABOUTME: GitHub Actions workflow for security scanning of OpenSPP Docker images
+# ABOUTME: Runs Trivy security scans and dependency checks
+
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker-push.acn.fr
+  IMAGE_NAME: openspp/openspp
+
+jobs:
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build image for scanning (Ubuntu)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: openspp:scan-ubuntu
+          cache-from: type=gha
+      
+      - name: Build image for scanning (Slim)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.slim
+          load: true
+          tags: openspp:scan-slim
+          cache-from: type=gha
+      
+      - name: Run Trivy vulnerability scanner (Ubuntu)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'openspp:scan-ubuntu'
+          format: 'sarif'
+          output: 'trivy-ubuntu-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Run Trivy vulnerability scanner (Slim)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'openspp:scan-slim'
+          format: 'sarif'
+          output: 'trivy-slim-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-ubuntu-results.sarif'
+          category: 'trivy-ubuntu'
+      
+      - name: Upload Trivy results to GitHub Security (Slim)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-slim-results.sarif'
+          category: 'trivy-slim'
+      
+      - name: Generate vulnerability report
+        if: always()
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Ubuntu Image" >> $GITHUB_STEP_SUMMARY
+          docker run --rm -v $PWD:/workspace aquasec/trivy image \
+            --severity HIGH,CRITICAL \
+            --format table \
+            openspp:scan-ubuntu >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Slim Image" >> $GITHUB_STEP_SUMMARY
+          docker run --rm -v $PWD:/workspace aquasec/trivy image \
+            --severity HIGH,CRITICAL \
+            --format table \
+            openspp:scan-slim >> $GITHUB_STEP_SUMMARY 2>&1 || true
+
+  dockerfile-scan:
+    name: Dockerfile Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+      
+      - name: Run Hadolint (Slim)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.slim
+          failure-threshold: warning
+
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'openspp-docker'
+          path: '.'
+          format: 'HTML'
+          args: >
+            --enableRetired
+            --enableExperimental
+      
+      - name: Upload dependency check results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: reports/
