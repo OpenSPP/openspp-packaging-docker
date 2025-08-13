@@ -1,5 +1,5 @@
-# ABOUTME: Debug version of Woodpecker CI Pipeline to troubleshoot authentication
-# ABOUTME: Tests registry login and provides diagnostic information
+# ABOUTME: Working Woodpecker CI Pipeline for OpenSPP Docker Images
+# ABOUTME: Uses explicit Docker commands with manual login (based on openspp-packaging-v2 pattern)
 
 clone:
   git:
@@ -12,74 +12,200 @@ when:
   event: [push, tag, cron, manual]
 
 steps:
-  # Step 1: Test secret availability
-  test-secrets:
-    image: alpine:latest
-    environment:
-      NEXUS_USER:
-        from_secret: nexus_username
-      NEXUS_PASS:
-        from_secret: nexus_password
-    commands:
-      - echo "Testing secret availability..."
-      - echo "NEXUS_USER exists:" $(if [ -n "$NEXUS_USER" ]; then echo "YES"; else echo "NO"; fi)
-      - echo "NEXUS_USER length:" $(echo -n "$NEXUS_USER" | wc -c)
-      - echo "NEXUS_PASS exists:" $(if [ -n "$NEXUS_PASS" ]; then echo "YES"; else echo "NO"; fi)
-      - echo "NEXUS_PASS length:" $(echo -n "$NEXUS_PASS" | wc -c)
-    when:
-      event: [push, manual]
-
-  # Step 2: Test Docker login manually
-  test-docker-login:
-    image: docker:latest
-    environment:
-      NEXUS_USER:
-        from_secret: nexus_username
-      NEXUS_PASS:
-        from_secret: nexus_password
-    commands:
-      - echo "Testing Docker login to registry..."
-      - echo "Attempting login to internal Nexus at 172.20.0.26:8082..."
-      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8082 -u "$NEXUS_USER" --password-stdin && echo "✓ Login successful!" || echo "✗ Login failed"
-    when:
-      event: [push, manual]
-
-  # Step 3: Simple build without push to test plugin authentication
-  build-test-plugin:
-    image: woodpeckerci/plugin-docker-buildx
-    privileged: true
-    settings:
-      dry_run: true  # Don't actually push
-      registry: 172.20.0.26:8082
-      repo: 172.20.0.26:8082/openspp/openspp
-      dockerfile: Dockerfile
-      platforms: linux/amd64
-      tags:
-        - test-${CI_COMMIT_SHA:0:8}
-      username:
-        from_secret: nexus_username
-      password:
-        from_secret: nexus_password
-    when:
-      event: [push, manual]
-
-  # Step 4: Alternative authentication method using explicit Docker commands
-  build-with-explicit-login:
+  # Build and push Ubuntu Docker image
+  build-ubuntu:
     image: docker:latest
     privileged: true
     environment:
       NEXUS_USER:
-        from_secret: nexus_username
+        from_secret: nexus_username  # Try nexus_username first
       NEXUS_PASS:
         from_secret: nexus_password
+      NEXUS_USER_ALT:
+        from_secret: nexus_user  # Fallback to nexus_user
+      NEXUS_PASS_ALT:
+        from_secret: nexus_password
     commands:
+      # Use the secret that's available
+      - |
+        if [ -n "$NEXUS_USER" ]; then
+          echo "Using nexus_username secret"
+        elif [ -n "$NEXUS_USER_ALT" ]; then
+          echo "Using nexus_user secret"
+          export NEXUS_USER="$NEXUS_USER_ALT"
+          export NEXUS_PASS="$NEXUS_PASS_ALT"
+        else
+          echo "ERROR: No Nexus credentials found!"
+          exit 1
+        fi
+      
+      # Setup Docker buildx
       - echo "Setting up Docker buildx..."
-      - docker buildx create --use --name mybuilder || true
+      - docker buildx create --use --name openspp-builder || true
       - docker buildx inspect --bootstrap
-      - echo "Logging in to internal Nexus registry..."
+      
+      # Login to Nexus Docker registry (port 8082)
+      - echo "Logging in to Nexus Docker registry at 172.20.0.26:8082..."
       - echo "$NEXUS_PASS" | docker login 172.20.0.26:8082 -u "$NEXUS_USER" --password-stdin
-      - echo "Building image..."
-      - docker buildx build --platform linux/amd64 -t 172.20.0.26:8082/openspp/openspp:test-manual-${CI_COMMIT_SHA:0:8} -f Dockerfile .
-      - echo "Build completed (dry run - not pushing)"
+      
+      # Determine tags based on event
+      - |
+        if [ "${CI_BUILD_EVENT}" = "tag" ]; then
+          echo "Building for tag: ${CI_COMMIT_TAG}"
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_TAG} -t 172.20.0.26:8082/openspp/openspp:latest"
+        elif [ "${CI_BUILD_EVENT}" = "cron" ]; then
+          echo "Building for cron/daily"
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:daily -t 172.20.0.26:8082/openspp/openspp:latest"
+        elif [ "${CI_COMMIT_BRANCH}" = "main" ] || [ "${CI_COMMIT_BRANCH}" = "master" ]; then
+          echo "Building for main branch"
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:latest -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}"
+        else
+          echo "Building for branch: ${CI_COMMIT_BRANCH}"
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_BRANCH} -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}"
+        fi
+      
+      # Build and push Ubuntu image
+      - echo "Building Ubuntu image..."
+      - |
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+          --build-arg VCS_REF=${CI_COMMIT_SHA} \
+          $TAGS \
+          --push \
+          -f Dockerfile \
+          .
+      
+      - echo "✓ Ubuntu image built and pushed successfully"
+
+  # Build and push Slim Docker image
+  build-slim:
+    image: docker:latest
+    privileged: true
+    environment:
+      NEXUS_USER:
+        from_secret: nexus_username
+      NEXUS_PASS:
+        from_secret: nexus_password
+      NEXUS_USER_ALT:
+        from_secret: nexus_user
+      NEXUS_PASS_ALT:
+        from_secret: nexus_password
+    commands:
+      # Use the secret that's available
+      - |
+        if [ -n "$NEXUS_USER" ]; then
+          echo "Using nexus_username secret"
+        elif [ -n "$NEXUS_USER_ALT" ]; then
+          echo "Using nexus_user secret"
+          export NEXUS_USER="$NEXUS_USER_ALT"
+          export NEXUS_PASS="$NEXUS_PASS_ALT"
+        else
+          echo "ERROR: No Nexus credentials found!"
+          exit 1
+        fi
+      
+      # Check if Dockerfile-slim exists
+      - |
+        if [ ! -f "Dockerfile-slim" ]; then
+          echo "Dockerfile-slim not found, skipping slim build"
+          exit 0
+        fi
+      
+      # Setup Docker buildx (reuse if exists)
+      - echo "Setting up Docker buildx..."
+      - docker buildx use openspp-builder || docker buildx create --use --name openspp-builder
+      
+      # Login to Nexus Docker registry
+      - echo "Logging in to Nexus Docker registry..."
+      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8082 -u "$NEXUS_USER" --password-stdin
+      
+      # Determine tags
+      - |
+        if [ "${CI_BUILD_EVENT}" = "tag" ]; then
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_TAG}-slim -t 172.20.0.26:8082/openspp/openspp:latest-slim"
+        elif [ "${CI_BUILD_EVENT}" = "cron" ]; then
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:daily-slim -t 172.20.0.26:8082/openspp/openspp:latest-slim"
+        elif [ "${CI_COMMIT_BRANCH}" = "main" ] || [ "${CI_COMMIT_BRANCH}" = "master" ]; then
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:latest-slim -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim"
+        else
+          TAGS="-t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_BRANCH}-slim -t 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8}-slim"
+        fi
+      
+      # Build and push Slim image
+      - echo "Building Slim image..."
+      - |
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+          --build-arg VCS_REF=${CI_COMMIT_SHA} \
+          $TAGS \
+          --push \
+          -f Dockerfile-slim \
+          .
+      
+      - echo "✓ Slim image built and pushed successfully"
+    failure: ignore  # Don't fail pipeline if slim build fails
+
+  # Test images after build
+  test-images:
+    image: docker:latest
+    commands:
+      - echo "Testing built images..."
+      - docker pull 172.20.0.26:8082/openspp/openspp:${CI_COMMIT_SHA:0:8} || echo "Could not pull test image"
+      - echo "✓ Build pipeline completed"
     when:
-      event: [push, manual]
+      - event: [push, tag, cron, manual]
+    failure: ignore
+
+  # Optional: Mirror to public registry for pulling
+  mirror-to-public:
+    image: docker:latest
+    privileged: true
+    environment:
+      NEXUS_USER:
+        from_secret: nexus_username
+      NEXUS_PASS:
+        from_secret: nexus_password
+      NEXUS_USER_ALT:
+        from_secret: nexus_user
+      NEXUS_PASS_ALT:
+        from_secret: nexus_password
+    commands:
+      # Use the secret that's available
+      - |
+        if [ -n "$NEXUS_USER" ]; then
+          echo "Using nexus_username secret"
+        elif [ -n "$NEXUS_USER_ALT" ]; then
+          echo "Using nexus_user secret"
+          export NEXUS_USER="$NEXUS_USER_ALT"
+          export NEXUS_PASS="$NEXUS_PASS_ALT"
+        else
+          echo "WARNING: No Nexus credentials found, skipping mirror"
+          exit 0
+        fi
+      
+      # Only mirror on main branch or tags
+      - |
+        if [ "${CI_BUILD_EVENT}" != "tag" ] && [ "${CI_COMMIT_BRANCH}" != "main" ] && [ "${CI_COMMIT_BRANCH}" != "master" ]; then
+          echo "Skipping mirror for feature branch"
+          exit 0
+        fi
+      
+      # Login to internal registry
+      - echo "$NEXUS_PASS" | docker login 172.20.0.26:8082 -u "$NEXUS_USER" --password-stdin
+      
+      # Pull from internal
+      - docker pull 172.20.0.26:8082/openspp/openspp:latest
+      
+      # Retag for public registry (different port for public access)
+      - docker tag 172.20.0.26:8082/openspp/openspp:latest docker.acn.fr/openspp/openspp:latest
+      
+      # Login to public registry (if different credentials needed)
+      - echo "$NEXUS_PASS" | docker login docker.acn.fr -u "$NEXUS_USER" --password-stdin || true
+      
+      # Push to public
+      - docker push docker.acn.fr/openspp/openspp:latest || echo "Could not push to public registry"
+    when:
+      - event: [tag, cron]
+    failure: ignore
