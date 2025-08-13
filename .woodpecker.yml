@@ -68,7 +68,7 @@ steps:
           --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
           --build-arg VCS_REF=${CI_COMMIT_SHA} \
           $TAGS \
-          --push \
+          --output type=registry,registry.insecure=true \
           -f Dockerfile \
           .
       
@@ -131,7 +131,7 @@ steps:
           --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
           --build-arg VCS_REF=${CI_COMMIT_SHA} \
           $TAGS \
-          --push \
+          --output type=registry,registry.insecure=true \
           -f Dockerfile-slim \
           .
       
