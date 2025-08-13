@@ -21,19 +21,11 @@ steps:
         from_secret: nexus_username  # Try nexus_username first
       NEXUS_PASS:
         from_secret: nexus_password
-      NEXUS_USER_ALT:
-        from_secret: nexus_user  # Fallback to nexus_user
-      NEXUS_PASS_ALT:
-        from_secret: nexus_password
     commands:
       # Use the secret that's available
       - |
         if [ -n "$NEXUS_USER" ]; then
           echo "Using nexus_username secret"
-        elif [ -n "$NEXUS_USER_ALT" ]; then
-          echo "Using nexus_user secret"
-          export NEXUS_USER="$NEXUS_USER_ALT"
-          export NEXUS_PASS="$NEXUS_PASS_ALT"
         else
           echo "ERROR: No Nexus credentials found!"
           exit 1
@@ -87,19 +79,11 @@ steps:
         from_secret: nexus_username
       NEXUS_PASS:
         from_secret: nexus_password
-      NEXUS_USER_ALT:
-        from_secret: nexus_user
-      NEXUS_PASS_ALT:
-        from_secret: nexus_password
     commands:
       # Use the secret that's available
       - |
         if [ -n "$NEXUS_USER" ]; then
           echo "Using nexus_username secret"
-        elif [ -n "$NEXUS_USER_ALT" ]; then
-          echo "Using nexus_user secret"
-          export NEXUS_USER="$NEXUS_USER_ALT"
-          export NEXUS_PASS="$NEXUS_PASS_ALT"
         else
           echo "ERROR: No Nexus credentials found!"
           exit 1
@@ -167,19 +151,11 @@ steps:
         from_secret: nexus_username
       NEXUS_PASS:
         from_secret: nexus_password
-      NEXUS_USER_ALT:
-        from_secret: nexus_user
-      NEXUS_PASS_ALT:
-        from_secret: nexus_password
     commands:
       # Use the secret that's available
       - |
         if [ -n "$NEXUS_USER" ]; then
           echo "Using nexus_username secret"
-        elif [ -n "$NEXUS_USER_ALT" ]; then
-          echo "Using nexus_user secret"
-          export NEXUS_USER="$NEXUS_USER_ALT"
-          export NEXUS_PASS="$NEXUS_PASS_ALT"
         else
           echo "WARNING: No Nexus credentials found, skipping mirror"
           exit 0
