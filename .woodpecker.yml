@@ -15,13 +15,16 @@ steps:
   # Build and push Ubuntu Docker image
   build-ubuntu:
     image: docker:latest
-    privileged: true
     environment:
       NEXUS_USER:
-        from_secret: nexus_username  # Try nexus_username first
+        from_secret: nexus_username
       NEXUS_PASS:
         from_secret: nexus_password
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
+      # Verify Docker is available
+      - docker --version
       # Use the secret that's available
       - |
         if [ -n "$NEXUS_USER" ]; then
@@ -33,10 +36,11 @@ steps:
       
       # Setup Docker buildx
       - echo "Setting up Docker buildx..."
-      - docker buildx create --use --name openspp-builder || true
+      - docker buildx create --use --name openspp-builder --driver-opt network=host || true
       - docker buildx inspect --bootstrap
       
       # Login to Nexus Docker registry (port 8082)
+      # Note: Registry must be configured as insecure on the host
       - echo "Logging in to Nexus Docker registry at 172.20.0.26:8082..."
       - echo "$NEXUS_PASS" | docker login 172.20.0.26:8082 -u "$NEXUS_USER" --password-stdin
       
@@ -73,13 +77,16 @@ steps:
   # Build and push Slim Docker image
   build-slim:
     image: docker:latest
-    privileged: true
     environment:
       NEXUS_USER:
         from_secret: nexus_username
       NEXUS_PASS:
         from_secret: nexus_password
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
+      # Verify Docker is available
+      - docker --version
       # Use the secret that's available
       - |
         if [ -n "$NEXUS_USER" ]; then
@@ -98,7 +105,7 @@ steps:
       
       # Setup Docker buildx (reuse if exists)
       - echo "Setting up Docker buildx..."
-      - docker buildx use openspp-builder || docker buildx create --use --name openspp-builder
+      - docker buildx use openspp-builder || docker buildx create --use --name openspp-builder --driver-opt network=host
       
       # Login to Nexus Docker registry
       - echo "Logging in to Nexus Docker registry..."
@@ -145,12 +152,13 @@ steps:
   # Optional: Mirror to public registry for pulling
   mirror-to-public:
     image: docker:latest
-    privileged: true
     environment:
       NEXUS_USER:
         from_secret: nexus_username
       NEXUS_PASS:
         from_secret: nexus_password
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       # Use the secret that's available
       - |
