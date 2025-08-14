@@ -177,10 +177,20 @@ main() {
                     ODOO_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
                     log_warn "Generated random admin password: $ODOO_ADMIN_PASSWORD"
                     log_warn "Set ODOO_ADMIN_PASSWORD environment variable to use a specific password"
-                    DB_ARGS+=("--admin_passwd=${ODOO_ADMIN_PASSWORD}")
+                    if grep -q "^; admin_passwd =" $ODOO_RC; then
+                      sed -i "s/^; admin_passwd = .*/admin_passwd = $ODOO_ADMIN_PASSWORD/" $ODOO_RC
+                    else
+                      echo "\nadmin_passwd = $ODOO_ADMIN_PASSWORD" >> $ODOO_RC
+                    fi
+                    # DB_ARGS+=("--admin_passwd=${ODOO_ADMIN_PASSWORD}")
                 fi
             else
-                DB_ARGS+=("--admin_passwd=${ODOO_ADMIN_PASSWORD}")
+              if grep -q "^; admin_passwd =" $ODOO_RC; then
+                sed -i "s/^; admin_passwd = .*/admin_passwd = $ODOO_ADMIN_PASSWORD/" $ODOO_RC
+              else
+                echo "\nadmin_passwd = $ODOO_ADMIN_PASSWORD" >> $ODOO_RC
+              fi
+              # DB_ARGS+=("--admin_passwd=${ODOO_ADMIN_PASSWORD}")
             fi
             
             # Add optional parameters from environment
@@ -254,7 +264,7 @@ main() {
                 ADDONS_PATH="${ADDONS_PATH},/mnt/extra-addons"
                 log_info "Extra addons detected at /mnt/extra-addons"
             fi
-            DB_ARGS+=("--addons_path=${ADDONS_PATH}")
+            DB_ARGS+=("--addons-path=${ADDONS_PATH}")
             
             # Log to stdout for container logs
             DB_ARGS+=("--logfile=-")
