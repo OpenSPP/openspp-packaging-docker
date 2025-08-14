@@ -71,6 +71,8 @@ docker run -d \
   -e DB_HOST=db \
   -e DB_USER=openspp \
   -e DB_PASSWORD=openspp \
+  -e DB_NAME=openspp \
+  -e DB_PORT=5432 \
   -e ODOO_ADMIN_PASSWORD=admin \
   docker.acn.fr/openspp/openspp:latest
 ```
