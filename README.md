@@ -35,15 +35,15 @@ cd openspp-packaging-docker
 2. Build and start the services:
 ```bash
 # Build the image (pulls from APT repository)
-docker-compose build
+docker compose build
 
 # Start the services
-docker-compose up -d
+docker compose up -d
 ```
 
 3. Initialize the database (first run only):
 ```bash
-docker-compose exec openspp env INIT_DATABASE=true openspp-server
+docker compose exec openspp env INIT_DATABASE=true openspp-server
 ```
 
 4. Access OpenSPP at http://localhost:8069
@@ -71,6 +71,8 @@ docker run -d \
   -e DB_HOST=db \
   -e DB_USER=openspp \
   -e DB_PASSWORD=openspp \
+  -e DB_NAME=openspp \
+  -e DB_PORT=5432 \
   -e ODOO_ADMIN_PASSWORD=admin \
   docker.acn.fr/openspp/openspp:latest
 ```
@@ -173,7 +175,7 @@ echo "redis_password" | docker secret create redis_password -
 
 2. Deploy with production configuration:
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Kubernetes Deployment
@@ -286,14 +288,14 @@ docker exec openspp env UPDATE_MODULES=base,web openspp-server
 1. Place addons in `custom-addons/` directory
 2. Restart container to detect new modules:
 ```bash
-docker-compose restart openspp
+docker compose restart openspp
 ```
 
 ### Debugging
 
 Enable development mode:
 ```bash
-docker-compose exec openspp env ODOO_DEV_MODE=true openspp-server
+docker compose exec openspp env ODOO_DEV_MODE=true openspp-server
 ```
 
 ## License

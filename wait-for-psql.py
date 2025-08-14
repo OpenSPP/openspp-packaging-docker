@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # ABOUTME: Python script to wait for PostgreSQL availability
-# ABOUTME: Used as fallback when psql client is not available
 
 import os
 import sys
