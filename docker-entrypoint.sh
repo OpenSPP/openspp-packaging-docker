@@ -91,12 +91,7 @@ wait_for_postgres() {
     
     # Use wait-for-psql.py if available, otherwise use psql
     if [ -f /usr/local/bin/wait-for-psql.py ]; then
-        python3 /usr/local/bin/wait-for-psql.py \
-            --db_host="${DB_HOST}" \
-            --db_port="${DB_PORT}" \
-            --db_user="${DB_USER}" \
-            --db_password="${DB_PASSWORD}" \
-            --timeout=30
+        python3 /usr/local/bin/wait-for-psql.py
     else
         local max_attempts=30
         local attempt=0
