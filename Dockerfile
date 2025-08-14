@@ -8,7 +8,7 @@ ARG TARGETARCH=amd64
 # ============================================
 # Stage 1: Configure APT repository
 # ============================================
-FROM ubuntu:24.04 as downloader
+FROM ubuntu:24.04 AS downloader
 
 ARG TARGETARCH
 ARG DEBIAN_FRONTEND
@@ -35,7 +35,7 @@ RUN mkdir -p /etc/apt/keyrings && \
 # ============================================
 # Stage 2: Install OpenSPP package
 # ============================================
-FROM ubuntu:24.04 as installer
+FROM ubuntu:24.04 AS installer
 
 ARG DEBIAN_FRONTEND
 ARG TARGETARCH
