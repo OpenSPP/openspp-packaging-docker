@@ -9,10 +9,12 @@ This repository uses GitHub Actions for CI/CD to build and push OpenSPP Docker i
 Configure the following secrets in your GitHub repository settings:
 
 ### Registry Authentication
+
 - `NEXUS_USERNAME`: Nexus registry username (e.g., `admin`)
 - `NEXUS_PASSWORD`: Nexus registry password
 
 ### Optional Notifications
+
 - `SLACK_WEBHOOK`: Slack webhook URL for build notifications (optional)
 
 ### Setting Secrets
@@ -31,12 +33,14 @@ Configure the following secrets in your GitHub repository settings:
 ### 1. Docker Build and Push (`docker-build.yml`)
 
 **Triggers:**
+
 - Push to main, master, develop, or release/* branches
 - Pull requests to main, master, or develop
 - Git tags (v*, semantic versioning)
 - Manual workflow dispatch
 
 **Actions:**
+
 - Builds Ubuntu 24.04 and Debian slim Docker images
 - **Platform:** linux/amd64 only (no ARM support)
 - Pushes to Nexus registry (`docker-push.acn.fr`)
@@ -45,6 +49,7 @@ Configure the following secrets in your GitHub repository settings:
 - Updates Kubernetes manifests on tag releases
 
 **Image Tags:**
+
 - `latest` / `latest-slim` - Latest from main branch
 - `daily` / `daily-slim` - Daily builds from main branch
 - `v1.0.0` / `v1.0.0-slim` - Version tags
@@ -54,12 +59,14 @@ Configure the following secrets in your GitHub repository settings:
 ### 2. Security Scan (`security-scan.yml`)
 
 **Triggers:**
+
 - Push to main branches
 - Pull requests
 - Daily at 2 AM UTC
 - Manual workflow dispatch
 
 **Actions:**
+
 - Trivy vulnerability scanning
 - Hadolint Dockerfile linting
 - OWASP dependency checking
@@ -78,6 +85,7 @@ Configure the following secrets in your GitHub repository settings:
 ### Automatic Builds
 
 Images are automatically built and pushed when:
+
 - Pushing to main/master/develop branches
 - Creating a new release tag
 - Changes are tested (but not pushed) on pull requests
@@ -85,12 +93,14 @@ Images are automatically built and pushed when:
 ## Registry Information
 
 ### Push Registry (Authentication Required)
-```
+
+``` text
 docker-push.acn.fr/openspp/openspp
 ```
 
 ### Public Registry (Anonymous Pull)
-```
+
+``` text
 docker.acn.fr/openspp/openspp
 ```
 
@@ -115,6 +125,7 @@ docker pull docker.acn.fr/openspp/openspp:v1.0.0-slim
 ## Build Status
 
 You can view build status in the **Actions** tab of your repository. Each workflow run shows:
+
 - Build logs
 - Test results
 - Security scan findings
@@ -125,8 +136,10 @@ You can view build status in the **Actions** tab of your repository. Each workfl
 ### Authentication Failures
 
 If builds fail with authentication errors:
+
 1. Verify `NEXUS_USERNAME` and `NEXUS_PASSWORD` secrets are set correctly
 2. Test credentials locally:
+
    ```bash
    docker login docker-push.acn.fr -u <username>
    ```
@@ -142,6 +155,7 @@ If builds fail with authentication errors:
 ### Security Scan Issues
 
 Security scans may find vulnerabilities. Check:
+
 1. **Security** tab for detailed reports
 2. Trivy results in workflow logs
 3. Consider updating base images or packages
@@ -152,13 +166,14 @@ Security scans may find vulnerabilities. Check:
 - **Base Images:**
   - Ubuntu: `ubuntu:24.04`
   - Slim: `debian:bookworm-slim`
-- **OpenSPP Source:** APT repository at https://builds.acn.fr/repository/apt-openspp-daily/
+- **OpenSPP Source:** APT repository at [https://builds.acn.fr/repository/apt-openspp-daily/](https://builds.acn.fr/repository/apt-openspp-daily/)
 
 ## Monitoring
 
 ### Build Notifications
 
 If `SLACK_WEBHOOK` is configured, you'll receive notifications for:
+
 - Successful builds
 - Failed builds
 - Security scan results
@@ -166,6 +181,7 @@ If `SLACK_WEBHOOK` is configured, you'll receive notifications for:
 ### GitHub Notifications
 
 Enable GitHub notifications to receive updates about:
+
 - Workflow failures
 - Security alerts
 - Pull request checks
@@ -181,6 +197,7 @@ Enable GitHub notifications to receive updates about:
 ## Support
 
 For issues with:
+
 - **GitHub Actions:** Check [GitHub Actions documentation](https://docs.github.com/actions)
 - **Docker builds:** Review Dockerfile and build logs
 - **Nexus registry:** Contact your Nexus administrator

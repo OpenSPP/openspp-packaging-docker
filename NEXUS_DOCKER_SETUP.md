@@ -123,9 +123,11 @@ docker build -t openspp:latest .
 
 1. **Check secret names**: Ensure using the correct secret names (nexus_username vs nexus_user)
 2. **Verify credentials**: Test login manually:
+
    ```bash
    echo "your-password" | docker login 172.20.0.26:8082 -u "your-username" --password-stdin
    ```
+
 3. **Check network access**: Ensure the CI runner can reach 172.20.0.26:8082
 
 ### Push Failures

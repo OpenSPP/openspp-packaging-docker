@@ -19,7 +19,7 @@ docker --version
 
 Since the Nexus Docker registry at `172.20.0.26:8082` uses HTTP (not HTTPS), the Docker daemon on the Woodpecker agent host must be configured to allow this insecure registry.
 
-#### Edit Docker daemon configuration:
+#### Edit Docker daemon configuration
 
 ```bash
 sudo nano /etc/docker/daemon.json
@@ -33,13 +33,13 @@ Add or update the configuration:
 }
 ```
 
-#### Restart Docker:
+#### Restart Docker
 
 ```bash
 sudo systemctl restart docker
 ```
 
-#### Verify the configuration:
+#### Verify the configuration
 
 ```bash
 docker info | grep -A 5 "Insecure Registries"
@@ -52,6 +52,7 @@ You should see `172.20.0.26:8082` listed.
 The Woodpecker agent must have access to the Docker socket. This is typically at `/var/run/docker.sock`.
 
 Verify the socket exists:
+
 ```bash
 ls -la /var/run/docker.sock
 ```
@@ -59,10 +60,12 @@ ls -la /var/run/docker.sock
 ### 4. Network Access
 
 The agent must be able to reach:
+
 - `172.20.0.26:8082` - Nexus Docker registry (internal network)
 - GitHub for cloning repositories
 
 Test connectivity:
+
 ```bash
 # Test Nexus registry
 curl -I http://172.20.0.26:8082/v2/
@@ -104,6 +107,7 @@ docker run -d \
 ### "Cannot connect to Docker daemon"
 
 Ensure:
+
 1. Docker is running on the host
 2. The socket is mounted correctly
 3. The agent has permissions to access the socket
@@ -115,6 +119,7 @@ This means the insecure-registries configuration is missing. Add `172.20.0.26:80
 ### "unauthorized: authentication required"
 
 Check:
+
 1. Nexus credentials are correct
 2. The user has push permissions to the repository
 3. The repository exists in Nexus
@@ -129,6 +134,7 @@ Check:
 ## Alternative: Docker-in-Docker
 
 If socket mounting is not desired, you can use Docker-in-Docker (DinD), but this requires:
+
 - Privileged mode (security risk)
 - More complex configuration
 - Potential performance overhead
