@@ -164,7 +164,7 @@ push: ## Push images to Nexus registry
 
 scan: ## Security scan with Trivy
 	@echo -e "$(GREEN)Scanning images for vulnerabilities...$(NC)"
-	@which trivy > /dev/null || (echo "$(RED)Trivy not installed. Install from: https://github.com/aquasecurity/trivy$(NC)" && exit 1)
+	@which trivy > /dev/null || (echo -e "$(RED)Trivy not installed. Install from: https://github.com/aquasecurity/trivy$(NC)" && exit 1)
 	trivy image --severity HIGH,CRITICAL $(IMAGE_NAME):latest
 	trivy image --severity HIGH,CRITICAL $(IMAGE_NAME):latest-slim
 
