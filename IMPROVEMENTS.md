@@ -2,12 +2,11 @@
 
 Based on review of official Odoo Docker setup and OpenSPP Installation Guide.
 
-``` text
-> **Note:** Configuration updated to install directly from OpenSPP APT repository instead of copying local deb files.
-> 
-> **Repository:** https://builds.acn.fr/repository/apt-openspp-daily/
+> [!NOTE]
+> Configuration updated to install directly from OpenSPP APT repository instead of copying local deb files.
+>
+> **Repository:** [https://builds.acn.fr/repository/apt-openspp-daily/](https://builds.acn.fr/repository/apt-openspp-daily/)
 > **Package:** `openspp-17-daily`
-```
 
 ## Key Improvements Implemented
 
