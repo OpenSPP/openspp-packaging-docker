@@ -2,7 +2,8 @@
 
 Production-ready Docker images for OpenSPP Social Protection Platform based on Odoo 17.
 
-> **Note:** This configuration uses OpenSPP daily builds from the [apt-openspp-daily](https://builds.acn.fr/repository/apt-openspp-daily/) repository. The package name is `openspp-17-daily`.
+> [!NOTE]  
+> This configuration uses OpenSPP daily builds from the [apt-openspp-daily](https://builds.acn.fr/repository/apt-openspp-daily/) repository. The package name is `openspp-17-daily`.
 
 ## Docker Registry
 
@@ -26,6 +27,9 @@ Images are hosted on ACN Nexus Docker Registry:
 ## Quick Start
 
 ### Using Docker Compose (Development)
+
+> [!CAUTION]  
+> The docker-compose.yml file is configured for development use only. For production deployments, please refer to the official documentation.
 
 1. Clone this repository:
 
@@ -87,14 +91,14 @@ docker run -d \
 ### Standard Image (Ubuntu 24.04 LTS)
 
 - **Base**: Ubuntu 24.04 LTS
-- **Size**: ~1.5GB
+- **Size**: ~2.26GB
 - **Use case**: Production deployments requiring maximum compatibility
 - **Tag**: `docker.acn.fr/openspp/openspp:latest`
 
 ### Slim Image (Debian Bookworm)
 
 - **Base**: Debian bookworm-slim
-- **Size**: ~1.0GB
+- **Size**: ~1.92GB
 - **Use case**: Resource-constrained environments
 - **Tag**: `docker.acn.fr/openspp/openspp:latest-slim`
 
@@ -173,6 +177,7 @@ docker exec openspp grep workers /etc/openspp/odoo.conf
 # Navigate to Settings > Technical > Queue Job > Jobs
 ```
 
+<!--
 ## Production Deployment
 
 ### Using Docker Compose
@@ -192,6 +197,7 @@ docker exec openspp grep workers /etc/openspp/odoo.conf
    ```bash
    docker compose -f docker-compose.prod.yml up -d
    ```
+-->
 
 ### Kubernetes Deployment
 
