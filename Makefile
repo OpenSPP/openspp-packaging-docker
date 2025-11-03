@@ -26,10 +26,19 @@ help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
 
+bake:
+	@echo -e "$(GREEN)Building OpenSPP image (Ubuntu 24.04)...$(NC)"
+	@echo -e "$(YELLOW)Installing from APT repository: https://builds.acn.fr/repository/apt-openspp-daily$(NC)"
+	docker buildx bake \
+	    --no-cache \
+		-f docker-bake.hcl
+
 build: ## Build the standard Ubuntu-based image
 	@echo -e "$(GREEN)Building OpenSPP image (Ubuntu 24.04)...$(NC)"
 	@echo -e "$(YELLOW)Installing from APT repository: https://builds.acn.fr/repository/apt-openspp-daily$(NC)"
-	docker build \
+	docker buildx build \
+	    --no-cache \
+		--platform linux/amd64 \
 		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
 		--build-arg VCS_REF=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		-t $(IMAGE_NAME):$(IMAGE_TAG) \
@@ -41,7 +50,9 @@ build: ## Build the standard Ubuntu-based image
 build-slim: ## Build the lightweight Debian-based image
 	@echo -e "$(GREEN)Building OpenSPP slim image (Debian bookworm)...$(NC)"
 	@echo -e "$(YELLOW)Installing from APT repository: https://builds.acn.fr/repository/apt-openspp-daily$(NC)"
-	docker build \
+	docker buildx build \
+	    --no-cache \
+		--platform linux/amd64 \
 		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
 		--build-arg VCS_REF=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		-t $(IMAGE_NAME):$(IMAGE_TAG)-slim \
