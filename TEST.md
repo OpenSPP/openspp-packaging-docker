@@ -28,40 +28,44 @@ chmod +x test-images.sh
 ### Manual Testing with Docker Compose
 
 1. **Test the latest images from registry:**
-```bash
-# Start services
-docker-compose -f docker-compose.test.yml up -d
 
-# Watch logs
-docker-compose -f docker-compose.test.yml logs -f
+   ```bash
+   # Start services
+   docker-compose -f docker-compose.test.yml up -d
 
-# Access OpenSPP
-open http://localhost:8069
+   # Watch logs
+   docker-compose -f docker-compose.test.yml logs -f
 
-# Stop services
-docker-compose -f docker-compose.test.yml down -v
-```
+   # Access OpenSPP
+   open http://localhost:8069
+
+   # Stop services
+   docker-compose -f docker-compose.test.yml down -v
+   ```
 
 2. **Test specific image tags:**
-```bash
-# Test weekly build
-IMAGE_TAG=weekly docker-compose -f docker-compose.test.yml up -d
 
-# Test specific version
-IMAGE_TAG=v1.0.0 docker-compose -f docker-compose.test.yml up -d
+   ```bash
+   # Test weekly build
+   IMAGE_TAG=weekly docker-compose -f docker-compose.test.yml up -d
 
-# Test slim variant
-IMAGE_TAG=latest-slim docker-compose -f docker-compose.test.yml up -d
-```
+   # Test specific version
+   IMAGE_TAG=v1.0.0 docker-compose -f docker-compose.test.yml up -d
+
+   # Test slim variant
+   IMAGE_TAG=latest-slim docker-compose -f docker-compose.test.yml up -d
+   ```
 
 3. **Test with database initialization:**
-```bash
-INIT_DATABASE=true docker-compose -f docker-compose.test.yml up -d
-```
+
+   ```bash
+   INIT_DATABASE=true docker-compose -f docker-compose.test.yml up -d
+   ```
 
 ## Test Scenarios
 
 ### 1. Basic Functionality Test
+
 - ✅ Image pulls successfully
 - ✅ Container starts without errors
 - ✅ Health endpoint responds
@@ -69,6 +73,7 @@ INIT_DATABASE=true docker-compose -f docker-compose.test.yml up -d
 - ✅ Can connect to PostgreSQL
 
 ### 2. Database Operations Test
+
 ```bash
 # Initialize database with modules
 docker-compose -f docker-compose.test.yml exec openspp \
@@ -80,6 +85,7 @@ docker-compose -f docker-compose.test.yml exec openspp \
 ```
 
 ### 3. Performance Test
+
 ```bash
 # Check response time
 time curl -s http://localhost:8069 > /dev/null
@@ -92,6 +98,7 @@ ab -n 100 -c 10 http://localhost:8069/
 ```
 
 ### 4. Module Installation Test
+
 ```bash
 # Install OpenSPP modules
 docker-compose -f docker-compose.test.yml exec openspp \
@@ -101,6 +108,7 @@ docker-compose -f docker-compose.test.yml exec openspp \
 ```
 
 ### 5. Multi-Architecture Test
+
 ```bash
 # Test on different architectures (if available)
 docker run --rm --platform linux/amd64 \
@@ -111,12 +119,14 @@ docker run --rm --platform linux/amd64 \
 ## Validation Checklist
 
 ### Image Build Validation
+
 - [ ] Image size is reasonable (~1.5GB for Ubuntu, ~1.0GB for slim)
 - [ ] No security vulnerabilities in base image
 - [ ] All required files are present
 - [ ] Proper user permissions (non-root)
 
 ### Runtime Validation
+
 - [ ] Container starts successfully
 - [ ] No critical errors in logs
 - [ ] Health check passes
@@ -126,6 +136,7 @@ docker run --rm --platform linux/amd64 \
 - [ ] Custom addons can be loaded
 
 ### Security Validation
+
 - [ ] Running as non-root user (openspp)
 - [ ] No exposed secrets in environment
 - [ ] Proper file permissions
@@ -134,6 +145,7 @@ docker run --rm --platform linux/amd64 \
 ## Debugging Failed Tests
 
 ### Container Won't Start
+
 ```bash
 # Check logs
 docker-compose -f docker-compose.test.yml logs openspp
@@ -146,6 +158,7 @@ docker-compose -f docker-compose.test.yml run openspp /bin/bash
 ```
 
 ### Database Connection Issues
+
 ```bash
 # Test database connectivity
 docker-compose -f docker-compose.test.yml exec openspp \
@@ -156,6 +169,7 @@ docker-compose -f docker-compose.test.yml logs db
 ```
 
 ### Module Import Errors
+
 ```bash
 # Check Python environment
 docker-compose -f docker-compose.test.yml exec openspp \
@@ -181,11 +195,13 @@ REGISTRY=localhost:5000 docker-compose -f docker-compose.test.yml up -d
 ## Automated CI Testing
 
 The GitHub Actions workflow automatically tests images on:
+
 - Pull requests
 - Weekly scheduled builds
 - Manual workflow dispatches
 
 To manually trigger tests:
+
 1. Go to [Actions](https://github.com/OpenSPP/openspp-packaging-docker/actions)
 2. Select "Docker Build and Push"
 3. Click "Run workflow"
@@ -212,6 +228,7 @@ docker rmi $(docker images | grep openspp | awk '{print $3}')
 ## Reporting Issues
 
 If tests fail:
+
 1. Capture the error logs
 2. Note the image tag and registry
 3. Document the test scenario

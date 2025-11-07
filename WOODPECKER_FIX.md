@@ -30,6 +30,7 @@ The new configuration (`.woodpecker-working.yml`) uses the same pattern as the w
 ## Key Changes
 
 ### Before (Not Working)
+
 ```yaml
 build:
   image: woodpeckerci/plugin-docker-buildx
@@ -43,6 +44,7 @@ build:
 ```
 
 ### After (Working)
+
 ```yaml
 build:
   image: docker:latest
@@ -56,6 +58,7 @@ build:
 ## Required Secrets
 
 Ensure these secrets are configured in Woodpecker:
+
 - `nexus_username` or `nexus_user`
 - `nexus_password`
 

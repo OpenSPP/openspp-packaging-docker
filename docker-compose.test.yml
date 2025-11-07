@@ -1,8 +1,6 @@
 # ABOUTME: Docker Compose configuration for testing OpenSPP images
 # ABOUTME: Quick validation that built images work correctly with database
 
-version: '3.8'
-
 services:
   # PostgreSQL Database
   db:

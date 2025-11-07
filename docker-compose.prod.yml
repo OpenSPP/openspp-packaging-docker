@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Production Docker Compose Configuration for OpenSPP
 # This configuration includes:
 # - Security hardening
