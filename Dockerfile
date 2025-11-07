@@ -54,11 +54,11 @@ RUN apt-get update \
         ca-certificates \
         curl \
     && case "${BASE_IMAGE}" in \
-    *"debian"* | *"bookworm"*) WKHTMLTOPDF_DISTRIB=bookworm && WKHTMLTOPDF_SHA=e9f95436298c77cc9406bd4bbd242f4771d0a4b2  ;; \
-    *"ubuntu"*)  WKHTMLTOPDF_DISTRIB=jammy && WKHTMLTOPDF_SHA=967390a759707337b46d1c02452e2bb6b2dc6d59  ;; \
+    *"debian"* | *"bookworm"*) WKHTMLTOPDF_DISTRIB=bookworm && WKHTMLTOPDF_SHA=98ba0d157b50d36f23bd0dedf4c0aa28c7b0c50fcdcdc54aa5b6bbba81a3941d  ;; \
+    *"ubuntu"*)  WKHTMLTOPDF_DISTRIB=jammy && WKHTMLTOPDF_SHA=4f723b2691ad8638a9df960e0421d346d7315083e3583a334f33362280ddba15  ;; \
     esac \
     && curl -o wkhtmltox.deb -sSL "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.${WKHTMLTOPDF_DISTRIB}_${TARGETARCH}.deb" \
-    && echo "${WKHTMLTOPDF_SHA}" wkhtmltox.deb | sha1sum -c - \
+    && echo "${WKHTMLTOPDF_SHA}" wkhtmltox.deb | sha256sum -c - \
     && rm -rf /var/lib/apt/lists/*
 
 # ============================================
@@ -77,7 +77,7 @@ ARG PYTHONDONTWRITEBYTECODE=1
 ARG UID=1001
 ARG VCS_REF="unspecified"
 
-SHELL ["/bin/bash", "-euox", "pipefail", "-c"]
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 # OCI Image Specification labels
 LABEL org.opencontainers.image.title="OpenSPP" \
@@ -132,7 +132,6 @@ RUN apt-get update \
     && echo "en_US.UTF-8 UTF-8" > /etc/locale.gen \
     && locale-gen en_US.UTF-8 \
     && update-locale LANG=en_US.UTF-8 \
-    && apt-get upgrade -y \
     && apt-get clean \
     && apt-get autopurge -yqq \
     && rm -rf /var/lib/apt/lists/* \
