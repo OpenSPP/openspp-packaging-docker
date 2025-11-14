@@ -26,7 +26,7 @@ help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
 
-bake:
+bake: ## Build images using docker-bake.hcl
 	@echo -e "$(GREEN)Building OpenSPP image (Ubuntu 24.04)...$(NC)"
 	@echo -e "$(YELLOW)Installing from APT repository: https://builds.acn.fr/repository/apt-openspp-daily$(NC)"
 	docker buildx bake \
