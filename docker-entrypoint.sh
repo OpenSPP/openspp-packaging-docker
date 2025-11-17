@@ -158,7 +158,7 @@ main() {
     fi
 
     # Database initialization (first run)
-    if [ "${INIT_DATABASE,,}" = "true" ]; then
+    if [ -n "${INIT_DATABASE:-}" ] && [ "${INIT_DATABASE,,}" = "true" ]; then
       log_info "Initializing database with base modules..."
 
       # Initialize with base module
@@ -179,7 +179,7 @@ main() {
     fi
 
     # Module installation
-    if [ -n "${INSTALL_MODULES}" ]; then
+    if [ -n "${INSTALL_MODULES:-}" ] && [ "${INSTALL_MODULES,,}" = "true" ]; then
       log_info "Installing modules: $INSTALL_MODULES"
       /opt/openspp/venv/bin/python /opt/openspp/odoo-bin \
         "${DB_ARGS[@]}" \
@@ -189,13 +189,13 @@ main() {
     fi
 
     # Module updates
-    if [ -n "${UPDATE_MODULES}" ]; then
+    if [ -n "${UPDATE_MODULES:-}" ] && [ "${UPDATE_MODULES,,}" = "true" ]; then
       log_info "Updating modules: $UPDATE_MODULES"
       DB_ARGS+=("--update=$UPDATE_MODULES")
     fi
 
     # Development mode
-    if [ "${ODOO_DEV_MODE,,}" = "true" ]; then
+    if [ -n "${ODOO_DEV_MODE:-}" ] && [ "${ODOO_DEV_MODE,,}" = "true" ]; then
       log_warn "Enabling development mode..."
       DB_ARGS+=("--dev=all")
       # Override workers for development
