@@ -179,7 +179,7 @@ main() {
     fi
 
     # Module installation
-    if [ -n "${INSTALL_MODULES:-}" ] && [ "${INSTALL_MODULES,,}" = "true" ]; then
+    if [ -n "${INSTALL_MODULES:-}" ]; then
       log_info "Installing modules: $INSTALL_MODULES"
       /opt/openspp/venv/bin/python /opt/openspp/odoo-bin \
         "${DB_ARGS[@]}" \
@@ -189,7 +189,7 @@ main() {
     fi
 
     # Module updates
-    if [ -n "${UPDATE_MODULES:-}" ] && [ "${UPDATE_MODULES,,}" = "true" ]; then
+    if [ -n "${UPDATE_MODULES:-}" ]; then
       log_info "Updating modules: $UPDATE_MODULES"
       DB_ARGS+=("--update=$UPDATE_MODULES")
     fi
