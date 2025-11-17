@@ -23,29 +23,21 @@ log_error() {
 }
 
 # Support for Docker secrets via _FILE environment variables
-if [ -n "${PASSWORD_FILE:-}" ] && [ -r "${PASSWORD_FILE}" ]; then
-  DB_PASSWORD="$(<"${PASSWORD_FILE}")"
-fi
+# Helper to read a secret from a file into a variable
+read_secret_from_file() {
+    local var_to_set=$1 file_var_name=$2
+    local file_path="${!file_var_name:-}"
+    if [ -n "$file_path" ] && [ -r "$file_path" ]; then
+        printf -v "$var_to_set" '%s' "$(<"$file_path")"
+    fi
+}
 
-if [ -n "${DB_PASSWORD_FILE:-}" ] && [ -r "${DB_PASSWORD_FILE}" ]; then
-  DB_PASSWORD="$(<"${DB_PASSWORD_FILE}")"
-fi
-
-if [ -n "${DB_USER_FILE:-}" ] && [ -r "${DB_USER_FILE}" ]; then
-  DB_USER="$(<"${DB_USER_FILE}")"
-fi
-
-if [ -n "${DB_NAME_FILE:-}" ] && [ -r "${DB_NAME_FILE}" ]; then
-  DB_NAME="$(<"${DB_NAME_FILE}")"
-fi
-
-if [ -n "${ADMIN_PASSWORD_FILE:-}" ] && [ -r "${ADMIN_PASSWORD_FILE}" ]; then
-  ODOO_ADMIN_PASSWORD="$(<"${ADMIN_PASSWORD_FILE}")"
-fi
-
-if [ -n "${ODOO_ADMIN_PASSWORD_FILE:-}" ] && [ -r "${ODOO_ADMIN_PASSWORD_FILE}" ]; then
-  ODOO_ADMIN_PASSWORD="$(<"${ODOO_ADMIN_PASSWORD_FILE}")"
-fi
+read_secret_from_file 'DB_PASSWORD' 'PASSWORD_FILE'
+read_secret_from_file 'DB_PASSWORD' 'DB_PASSWORD_FILE'
+read_secret_from_file 'DB_USER' 'DB_USER_FILE'
+read_secret_from_file 'DB_NAME' 'DB_NAME_FILE'
+read_secret_from_file 'ODOO_ADMIN_PASSWORD' 'ADMIN_PASSWORD_FILE'
+read_secret_from_file 'ODOO_ADMIN_PASSWORD' 'ODOO_ADMIN_PASSWORD_FILE'
 
 # Set default database connection parameters
 # Support both new-style and legacy environment variables for compatibility
