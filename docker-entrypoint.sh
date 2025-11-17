@@ -28,7 +28,7 @@ read_secret_from_file() {
     local var_to_set="$1" file_var_name="$2"
     local file_path="${!file_var_name:-}"
     if [ -n "$file_path" ] && [ -r "$file_path" ]; then
-        printf -v "$var_to_set" '%s' "$(<"$file_path")"
+        printf -v "$var_to_set" '%s' "$(tr -d '\n' < "$file_path")"
     fi
 }
 
