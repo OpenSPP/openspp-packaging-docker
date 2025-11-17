@@ -134,7 +134,6 @@ main() {
       log_info "Using ODOO_ADMIN_PASSWORD from environment variable"
       # CRITICAL: Escape the password for safe use in sed (handles / \ &).
       SAFE_PASSWORD_ESCAPED=$(printf '%s' "$ODOO_ADMIN_PASSWORD" | sed -e 's/[\&]/\\&/g')
-      log_info "spe $SAFE_PASSWORD_ESCAPED"
       # If the line is commented out, uncomment and set the ENV value.
       if grep -q "^\s*; admin_passwd\s*=" "$ODOO_RC"; then
         sed -i "s|^\s*; admin_passwd\s*=.*|admin_passwd = $SAFE_PASSWORD_ESCAPED|g" "$ODOO_RC"
