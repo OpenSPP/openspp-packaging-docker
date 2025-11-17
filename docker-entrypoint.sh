@@ -132,14 +132,18 @@ main() {
     # 2. Check if ODOO_ADMIN_PASSWORD is set in the environment.
     elif [ -n "$ODOO_ADMIN_PASSWORD" ]; then
       log_info "Using ODOO_ADMIN_PASSWORD from environment variable"
+      # CRITICAL: Escape the password for safe use in sed (handles / \ &).
+      SAFE_PASSWORD_ESCAPED=$(printf '%s' "$ODOO_ADMIN_PASSWORD" | sed -e 's/[\&]/\\&/g')
+      DELIMITER=$(echo "$SAFE_PASSWORD_ESCAPED" | tr -d '[|:=_~]' | head -c 1)
+      if [ -z "$DELIMITER" ]; then
+        DELIMITER='\x01'
+      fi
       # If the line is commented out, uncomment and set the ENV value.
       if grep -q "^\s*; admin_passwd\s*=" "$ODOO_RC"; then
-        sed -i "s/^\s*; admin_passwd\s*=.*/admin_passwd = $ODOO_ADMIN_PASSWORD/g" "$ODOO_RC"
-      # If the admin_passwd line is missing entirely, insert it after [options].
+        sed -i "s${DELIMITER}^\s*; admin_passwd\s*=.*${DELIMITER}admin_passwd = $SAFE_PASSWORD_ESCAPED${DELIMITER}g" "$ODOO_RC"      # If the admin_passwd line is missing entirely, insert it after [options].
       else
         log_info "admin_passwd line missing. Inserting ODOO_ADMIN_PASSWORD from ENV."
-        sed -i "/^\[options\]/a admin_passwd = $ODOO_ADMIN_PASSWORD" "$ODOO_RC"
-      fi
+        sed -i "/^\[options\]/a admin_passwd = $SAFE_PASSWORD_ESCAPED" "$ODOO_RC"      fi
     # If no hardcoded or environment password is found, generate a new secure random password.
     else
       # Generate secure random password
