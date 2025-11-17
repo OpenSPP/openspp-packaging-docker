@@ -23,28 +23,28 @@ log_error() {
 }
 
 # Support for Docker secrets via _FILE environment variables
-if [ -v PASSWORD_FILE ]; then
-  DB_PASSWORD="$(<"$PASSWORD_FILE")"
+if [ -n "${PASSWORD_FILE:-}" ] && [ -r "${PASSWORD_FILE}" ]; then
+  DB_PASSWORD="$(<"${PASSWORD_FILE}")"
 fi
 
-if [ -v DB_PASSWORD_FILE ]; then
-  DB_PASSWORD="$(<"$DB_PASSWORD_FILE")"
+if [ -n "${DB_PASSWORD_FILE:-}" ] && [ -r "${DB_PASSWORD_FILE}" ]; then
+  DB_PASSWORD="$(<"${DB_PASSWORD_FILE}")"
 fi
 
-if [ -v DB_USER_FILE ]; then
-  DB_USER="$(<"$DB_USER_FILE")"
+if [ -n "${DB_USER_FILE:-}" ] && [ -r "${DB_USER_FILE}" ]; then
+  DB_USER="$(<"${DB_USER_FILE}")"
 fi
 
-if [ -v DB_NAME_FILE ]; then
-  DB_NAME="$(<"$DB_NAME_FILE")"
+if [ -n "${DB_NAME_FILE:-}" ] && [ -r "${DB_NAME_FILE}" ]; then
+  DB_NAME="$(<"${DB_NAME_FILE}")"
 fi
 
-if [ -v ADMIN_PASSWORD_FILE ]; then
-  ODOO_ADMIN_PASSWORD="$(<"$ADMIN_PASSWORD_FILE")"
+if [ -n "${ADMIN_PASSWORD_FILE:-}" ] && [ -r "${ADMIN_PASSWORD_FILE}" ]; then
+  ODOO_ADMIN_PASSWORD="$(<"${ADMIN_PASSWORD_FILE}")"
 fi
 
-if [ -v ODOO_ADMIN_PASSWORD_FILE ]; then
-  ODOO_ADMIN_PASSWORD="$(<"$ODOO_ADMIN_PASSWORD_FILE")"
+if [ -n "${ODOO_ADMIN_PASSWORD_FILE:-}" ] && [ -r "${ODOO_ADMIN_PASSWORD_FILE}" ]; then
+  ODOO_ADMIN_PASSWORD="$(<"${ODOO_ADMIN_PASSWORD_FILE}")"
 fi
 
 # Set default database connection parameters
@@ -158,7 +158,7 @@ main() {
     fi
 
     # Database initialization (first run)
-    if [ -n "${INIT_DATABASE:-}" ] && [ "${INIT_DATABASE,,}" = "true" ]; then
+    if [ "${INIT_DATABASE,,}" = "true" ]; then
       log_info "Initializing database with base modules..."
 
       # Initialize with base module
@@ -195,7 +195,7 @@ main() {
     fi
 
     # Development mode
-    if [ -n "${ODOO_DEV_MODE:-}" ] && [ "${ODOO_DEV_MODE,,}" = "true" ]; then
+    if [ "${ODOO_DEV_MODE,,}" = "true" ]; then
       log_warn "Enabling development mode..."
       DB_ARGS+=("--dev=all")
       # Override workers for development
