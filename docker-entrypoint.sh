@@ -124,22 +124,34 @@ main() {
     fi
 
     # Admin password handling
-    if [ -z "$ODOO_ADMIN_PASSWORD" ]; then
-      # Check if admin_passwd is set in config
-      if grep -q -E "^\s*admin_passwd\s*=" "$ODOO_RC" 2>/dev/null; then
-        log_info "Using admin_passwd from config file"
+
+    # 1. Check for HARDCODED (uncommented) admin_passwd in the config file.
+    #    This value takes precedence over environment variables.
+    if grep -q -E "^\s*admin_passwd\s*=" "$ODOO_RC" 2>/dev/null; then
+      log_info "Using admin_passwd from config file"
+    # 2. Check if ODOO_ADMIN_PASSWORD is set in the environment.
+    elif [ -n "$ODOO_ADMIN_PASSWORD" ]; then
+      log_info "Using ODOO_ADMIN_PASSWORD from environment variable"
+      # If the line is commented out, uncomment and set the ENV value.
+      if grep -q "^\s*; admin_passwd\s*=" "$ODOO_RC"; then
+        sed -i "s/^\s*; admin_passwd\s*=.*/admin_passwd = $ODOO_ADMIN_PASSWORD/g" "$ODOO_RC"
+      # If the admin_passwd line is missing entirely, insert it after [options].
       else
-        # Generate secure random password if not set
-        ODOO_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-        log_warn "Set ODOO_ADMIN_PASSWORD environment variable to use a specific password"
-        # Insert admin_passwd after the [options] section header
-        sed -i "s/^; admin_passwd = /admin passwd = $ODOO_ADMIN_PASSWORD/g" "$ODOO_RC"
+        log_info "admin_passwd line missing. Inserting ODOO_ADMIN_PASSWORD from ENV."
+        sed -i "/^\[options\]/a admin_passwd = $ODOO_ADMIN_PASSWORD" "$ODOO_RC"
       fi
+    # If no hardcoded or environment password is found, generate a new secure random password.
     else
-      if grep -q "^; admin_passwd =" "$ODOO_RC"; then
-        sed -i "s/^; admin_passwd = /admin passwd = $ODOO_ADMIN_PASSWORD/g" "$ODOO_RC"
+      # Generate secure random password
+      ODOO_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+      log_warn "Set ODOO_ADMIN_PASSWORD environment variable to use a specific password"
+      # If the line is commented out, uncomment and set the ENV value.
+      if grep -q "^\s*; admin_passwd\s*=" "$ODOO_RC"; then
+        sed -i "s/^\s*; admin_passwd\s*=.*/admin_passwd = $ODOO_ADMIN_PASSWORD/g" "$ODOO_RC"
+      # If the admin_passwd line is missing entirely, insert it after [options].      
       else
-        sed -i "s/^; admin_passwd = /admin passwd = $ODOO_ADMIN_PASSWORD/g" "$ODOO_RC"
+        log_info "admin_passwd line missing. Inserting generated password."
+        sed -i "/^\[options\]/a admin_passwd = $ODOO_ADMIN_PASSWORD" "$ODOO_RC"
       fi
     fi
 
