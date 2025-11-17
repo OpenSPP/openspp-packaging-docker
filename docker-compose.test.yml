@@ -1,12 +1,10 @@
 # ABOUTME: Docker Compose configuration for testing OpenSPP images
 # ABOUTME: Quick validation that built images work correctly with database
 
-version: '3.8'
-
 services:
   # PostgreSQL Database
   db:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.5-alpine
     container_name: openspp-test-db
     environment:
       POSTGRES_USER: openspp
@@ -52,7 +50,7 @@ services:
       - "8072:8072"
     volumes:
       - test-openspp-data:/var/lib/openspp
-      - ./custom-addons:/mnt/extra-addons:ro
+      - ./custom-addons:/mnt/extra-addons:ro,Z
     networks:
       - openspp-test
     healthcheck:
@@ -86,7 +84,7 @@ services:
   #     - "8073:8072"
   #   volumes:
   #     - test-openspp-slim-data:/var/lib/openspp
-  #     - ./custom-addons:/mnt/extra-addons:ro
+  #     - ./custom-addons:/mnt/extra-addons:ro,Z
   #   networks:
   #     - openspp-test
   #   healthcheck:

@@ -1,8 +1,10 @@
 # Woodpecker CI Authentication Troubleshooting
 
 ## Issue
+
 The Woodpecker CI pipeline is failing with authentication errors when trying to push to the Nexus Docker registry:
-```
+
+``` text
 Logging in with username '********' to registry 'docker-push.acn.fr'
 ERR execution failed error="error authenticating: exit status 1"
 ```
@@ -10,23 +12,29 @@ ERR execution failed error="error authenticating: exit status 1"
 ## Possible Causes
 
 ### 1. Secret Names Mismatch
+
 The GitHub Actions workflow uses uppercase secret names:
+
 - `NEXUS_USERNAME`
 - `NEXUS_PASSWORD`
 
 While Woodpecker configuration uses lowercase:
+
 - `nexus_username`
 - `nexus_password`
 
 **Solution**: Ensure secrets are configured in Woodpecker with the exact same names used in the pipeline.
 
 ### 2. Secret Configuration in Woodpecker
+
 Secrets need to be properly configured in Woodpecker either:
+
 - **Repository secrets**: Add via Woodpecker UI under repository settings
 - **Organization secrets**: Add at organization level if using shared credentials
 - **Global secrets**: Configure in Woodpecker server for all repositories
 
 **To add secrets in Woodpecker UI:**
+
 1. Go to your repository in Woodpecker
 2. Click on Settings → Secrets
 3. Add new secrets:
@@ -36,35 +44,44 @@ Secrets need to be properly configured in Woodpecker either:
    - Value: Your Nexus password
 
 ### 3. Plugin Authentication Format
+
 The `woodpeckerci/plugin-docker-buildx` plugin might have issues with certain authentication methods.
 
 **Alternative approaches provided:**
 
 #### Option A: Debug Configuration (`.woodpecker-debug.yml`)
+
 Use this to test secret availability and manual Docker login:
+
 ```bash
 # Rename to .woodpecker.yml to test
 mv .woodpecker-debug.yml .woodpecker.yml
 ```
 
 #### Option B: Alternative Configuration (`.woodpecker-alt.yml`)
+
 Uses Docker commands directly instead of the plugin:
+
 ```bash
 # Rename to .woodpecker.yml to use
 mv .woodpecker-alt.yml .woodpecker.yml
 ```
 
 ### 4. Registry URL Format
+
 Ensure the registry URL is correct:
+
 - Push URL: `docker-push.acn.fr`
 - Pull URL: `docker.acn.fr`
 
 ### 5. Permissions
+
 The repository must be marked as "Trusted" in Woodpecker to use privileged mode required for Docker builds.
 
 ## Testing Steps
 
 1. **Test secret availability:**
+
    ```bash
    # Use the debug configuration
    cp .woodpecker-debug.yml .woodpecker.yml
@@ -84,7 +101,9 @@ The repository must be marked as "Trusted" in Woodpecker to use privileged mode 
    If the plugin continues to fail, use the alternative configuration that bypasses the plugin.
 
 ## Working GitHub Actions Reference
+
 The GitHub Actions workflow (`.github/workflows/docker-build.yml`) successfully authenticates using:
+
 ```yaml
 - name: Log in to Nexus Registry
   uses: docker/login-action@v3
