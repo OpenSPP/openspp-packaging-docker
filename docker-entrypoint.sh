@@ -23,29 +23,21 @@ log_error() {
 }
 
 # Support for Docker secrets via _FILE environment variables
-if [ -v PASSWORD_FILE ]; then
-  DB_PASSWORD="$(<"$PASSWORD_FILE")"
-fi
+# Helper to read a secret from a file into a variable
+read_secret_from_file() {
+    local var_to_set="$1" file_var_name="$2"
+    local file_path="${!file_var_name:-}"
+    if [ -n "$file_path" ] && [ -r "$file_path" ]; then
+        printf -v "$var_to_set" '%s' "$(tr -d '\n' < "$file_path")"
+    fi
+}
 
-if [ -v DB_PASSWORD_FILE ]; then
-  DB_PASSWORD="$(<"$DB_PASSWORD_FILE")"
-fi
-
-if [ -v DB_USER_FILE ]; then
-  DB_USER="$(<"$DB_USER_FILE")"
-fi
-
-if [ -v DB_NAME_FILE ]; then
-  DB_NAME="$(<"$DB_NAME_FILE")"
-fi
-
-if [ -v ADMIN_PASSWORD_FILE ]; then
-  ODOO_ADMIN_PASSWORD="$(<"$ADMIN_PASSWORD_FILE")"
-fi
-
-if [ -v ODOO_ADMIN_PASSWORD_FILE ]; then
-  ODOO_ADMIN_PASSWORD="$(<"$ODOO_ADMIN_PASSWORD_FILE")"
-fi
+read_secret_from_file 'DB_PASSWORD' 'PASSWORD_FILE'
+read_secret_from_file 'DB_PASSWORD' 'DB_PASSWORD_FILE'
+read_secret_from_file 'DB_USER' 'DB_USER_FILE'
+read_secret_from_file 'DB_NAME' 'DB_NAME_FILE'
+read_secret_from_file 'ODOO_ADMIN_PASSWORD' 'ADMIN_PASSWORD_FILE'
+read_secret_from_file 'ODOO_ADMIN_PASSWORD' 'ODOO_ADMIN_PASSWORD_FILE'
 
 # Set default database connection parameters
 # Support both new-style and legacy environment variables for compatibility
@@ -179,7 +171,7 @@ main() {
     fi
 
     # Module installation
-    if [ -n "${INSTALL_MODULES}" ]; then
+    if [ -n "${INSTALL_MODULES:-}" ]; then
       log_info "Installing modules: $INSTALL_MODULES"
       /opt/openspp/venv/bin/python /opt/openspp/odoo-bin \
         "${DB_ARGS[@]}" \
@@ -189,7 +181,7 @@ main() {
     fi
 
     # Module updates
-    if [ -n "${UPDATE_MODULES}" ]; then
+    if [ -n "${UPDATE_MODULES:-}" ]; then
       log_info "Updating modules: $UPDATE_MODULES"
       DB_ARGS+=("--update=$UPDATE_MODULES")
     fi
